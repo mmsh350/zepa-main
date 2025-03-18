@@ -29,7 +29,7 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return response()->json(['status' => 200, 'redirect_url' => url('kyc')]);
+        return response()->json(['status' => 200]);
     }
 
     /**

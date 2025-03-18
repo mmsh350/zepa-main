@@ -25,18 +25,16 @@ class WalletRepository
                     'updated_at' => now(),
                 ],
             );
-            //Create Bonus Wallet
-            Bonus::create(
-                [
-                    'user_id' => $loginUserId,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ],
-            );
+            // //Create Bonus Wallet
+            // Bonus::create(
+            //     [
+            //         'user_id' => $loginUserId,
+            //         'created_at' => now(),
+            //         'updated_at' => now(),
+            //     ],
+            // );
             //Update User of Wallet & Bonus Account Creation
             User::where('id', $loginUserId)->update(['wallet_is_created' => 1]);
-
         }
-
     }
 }

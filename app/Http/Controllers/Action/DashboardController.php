@@ -20,90 +20,68 @@ use Illuminate\Support\Facades\Auth;
 class DashboardController extends Controller
 {
     use ActiveUsers;
-    use KycVerify;
 
-    //Show Dashboard
+    protected $loginUserId;
+
+
+    public function __construct()
+    {
+        $this->loginUserId = Auth::id();
+    }
+
     public function show(Request $request)
     {
-        //Login User Id
-        $loginUserId = Auth::id();
-
-        //Check if user is Disabled
+        // Enhance later via middleware
         if ($this->is_active() != 1) {
             Auth::logout();
-
             return view('error');
         }
 
-        //Check if user is Pending, Rejected, or Verified KYC
-        $status = $this->is_verified();
+        $notifications = Notification::where('user_id', $this->loginUserId)
+            ->where('status', 'unread')
+            ->orderByDesc('id')
+            ->take(3)
+            ->get();
 
-        if ($status == 'Pending') {
-            return redirect()->route('verification.kyc');
+        $notifyCount = $notifications->count();
 
-        } elseif ($status == 'Submitted') {
-            return view('kyc-status')->with(compact('status'));
+        // Create Main Wallet Account
+        $walletRepo = new WalletRepository();
+        $walletRepo->createWalletAccount($this->loginUserId);
 
-        } elseif ($status == 'Rejected') {
-            return view('kyc-status')->with(compact('status'));
-        } else {
 
-            //Notification Data
-            $notifications = Notification::all()->where('user_id', $loginUserId)
-                ->sortByDesc('id')
-                ->where('status', 'unread')
-                ->take(3);
+        $virtual_accounts = Virtual_Accounts::where('status', 1)
+            ->where('user_id', $this->loginUserId)
+            ->take(2)
+            ->get();
 
-            //Notification Count
-            $notifycount = 0;
-            $notifycount = Notification::all()
-                ->where('user_id', $loginUserId)
-                ->where('status', 'unread')
-                ->count();
+        $wallet_balance = Wallet::where('user_id', $this->loginUserId)->value('balance') ?? 0;
+        $bonus_balance = Bonus::where('user_id', $this->loginUserId)->value('deposit') ?? 0;
 
-            //Create Virtual Account
-            $repObj = new VirtualAccountRepository();
-            $response = $repObj->createVirtualAccount($loginUserId);
+        // Get all transactions and counts
+        $transactions = Transaction::where('user_id', $this->loginUserId)
+            ->orderByDesc('id')
+            ->paginate(10);
 
-            //Create Main Wallet Account
-            $repObj2 = new WalletRepository();
-            $response = $repObj2->createWalletAccount($loginUserId);
+        $transaction_count = Transaction::where('user_id', $this->loginUserId)->count();
 
-            //Return all Virtual Accounts
-            $virtaul_accounts = Virtual_Accounts::all()->where('status',1)->where('user_id', $loginUserId)->take(2);
+        // Get news and notes
+        $newsItems = News::all();
+        $note = Notes::where('is_active', 1)->first();
 
-            //Return Wallet and Bonus Balance
-            $wallet = Wallet::where('user_id', $loginUserId)->first();
-            $wallet_balance = $wallet->balance;
+        $notificationsEnabled = Auth::user()->notification;
 
-            $bonus = Bonus::where('user_id', $loginUserId)->first();
-            $bonus_balance = $bonus->deposit;
-
-            //Get all transactions and counts
-
-            $transactions = Transaction::where('user_id', $loginUserId)
-                ->orderBy('id', 'desc')
-                ->paginate(10);
-            $transaction_count = Transaction::all()
-                ->where('user_id', $loginUserId)
-                ->count();
-
-            //Get news 
-            $newsItems = News::all();
-
-            //Get Notes 
-            $note = Notes::where('is_active', 1)->first();
-
-            return view('dashboard')
-                ->with(compact('note'))
-                ->with(compact('newsItems'))
-                ->with(compact('transactions'))
-                ->with(compact('transaction_count'))
-                ->with(compact('bonus_balance'))
-                ->with(compact('wallet_balance'))
-                ->with(compact('virtaul_accounts'))
-                ->with(compact('notifications'))
-                ->with(compact('notifycount'));
-        }
+        return view('dashboard', [
+            'note' => $note,
+            'newsItems' => $newsItems,
+            'transactions' => $transactions,
+            'transaction_count' => $transaction_count,
+            'bonus_balance' => $bonus_balance,
+            'wallet_balance' => $wallet_balance,
+            'virtual_accounts' => $virtual_accounts,
+            'notifications' => $notifications,
+            'notifyCount' => $notifyCount,
+            'notificationsEnabled' =>  $notificationsEnabled,
+        ]);
     }
 }

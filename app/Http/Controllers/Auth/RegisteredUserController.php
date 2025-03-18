@@ -4,22 +4,31 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Bonus;
+use App\Models\BonusHistory;
 use App\Models\Notification;
 use App\Models\User;
 use App\Models\Wallet;
+use App\Services\NotificationService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules;
 use Illuminate\View\View;
 
 class RegisteredUserController extends Controller
 {
-    /**
-     * Display the registration view.
-     */
+
+    protected $notificationService;
+
+    public function __construct(NotificationService $notificationService)
+    {
+        $this->notificationService = $notificationService;
+    }
+
+
     public function create(): View
     {
         return view('auth.register');
@@ -36,83 +45,125 @@ class RegisteredUserController extends Controller
         $request->validate([
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'referral_code' => ['nullable', 'string', 'max:6', 'regex:/^[\pL\pN\s\-]+$/u'],
-            'email' => ['required', 'string', 'email', 'max:255', 'unique:'.User::class],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:' . User::class],
         ]);
 
-        //Check the referral Code is entered
-        $referral_id = null;  $referral_bonus = 0;
-        if (request()->filled('referral_code')) {
-            // User entered a non-empty referral code
+        $referralDetails = $this->getBonus($request);
 
-            if (User::where('referral_code', $request->referral_code)->exists()) {
-                //get the referral Id
-                $query = User::where('referral_code', $request->referral_code)->first();
-                $referral_id = $query->id;
-                $referral_bonus = $query->referral_bonus;
+        if (isset($referralDetails['error'])) {
+            return response()->json([
+                'message' => 'error',
+                'errors' => [$referralDetails['error']],
+            ], 422);
+        }
 
-                if($referral_bonus == 0){
-                    //General Bonus
-                      $ref_bonus = DB::table('referral_bonus')->select('bonus')->first();
-                        if ($ref_bonus) {
-                            $referral_bonus = $ref_bonus->bonus;
-                        }
+        try {
+
+            DB::beginTransaction();
+
+            $user = User::create([
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'referral_code' => $referralDetails['myOwnCode'],
+                'refferral_id' => $referralDetails['referral_id'],
+            ]);
+
+            DB::commit();
+
+
+            if ($referralDetails['referral_id']) {
+                $this->addBonus($referralDetails['referral_id'], $referralDetails['referral_bonus'], $user->id);
+            }
+
+            $this->notificationService->createNotification(
+                $user->id,
+                'Welcome Message',
+                'Welcome to Zepa Solutions, Your trusted partner for convenient verification, airtime, data, cable, products, and ID solutions.'
+            );
+
+
+            event(new Registered($user));
+            Auth::login($user);
+            return response()->json(['status' => 200]);
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            Log::error('Registration error: ' . $e->getMessage());
+
+            return response()->json([
+                'message' => 'error',
+                'errors' => ['Registration failed. Please try again later.'],
+            ], 422);
+        }
+    }
+
+    private function getBonus($request)
+    {
+        $referral_id = null;
+        $referral_bonus = 0.00;
+
+
+        if ($request->filled('referral_code')) {
+
+            $referralUser = User::where('referral_code', $request->referral_code)->first();
+
+            if ($referralUser) {
+
+                $referral_id = $referralUser->id;
+                $referral_bonus = $referralUser->referral_bonus;
+
+
+                if (bccomp($referral_bonus, '0.00', 2) === 0) {
+                    $defaultBonus = DB::table('referral_bonus')->value('bonus');
+                    if ($defaultBonus !== null) {
+                        $referral_bonus = $defaultBonus;
+                    }
                 }
-                  
             } else {
-                // The refcode does not exist in the database
-                return response()->json([
-                    'message' => 'Invalid Referral Code',
-                    'errors' => ['Invalid Code' => 'Invalid Refferal Code, Enter a Valid One to proceed'],
-                ], 422);
+
+                return ['error' => 'Invalid Referral Code. Please enter a valid one to proceed.'];
             }
         }
 
-        //Create my own referral Code
         do {
             $random = md5(uniqid($request->email, true));
-            $myOwncode = substr($random, 0, 6);
-        } while (User::where('referral_code', $myOwncode)->exists());
+            $myOwnCode = substr($random, 0, 6);
+        } while (User::where('referral_code', $myOwnCode)->exists());
 
-        //Create User
-        $user = User::create([
+        return [
+            'referral_id' => $referral_id,
+            'referral_bonus' => $referral_bonus,
+            'myOwnCode' => $myOwnCode,
+        ];
+    }
 
-            'email' => strtolower($request->email),
-            'password' => Hash::make($request->password),
-            'referral_code' => ucwords($myOwncode),
-            'refferral_id' => $referral_id,
-        ]);
+    private function addBonus($referral_id, $referral_bonus, $referred_user_id)
+    {
 
-        $lastInsertedId = $user->id;
-
-        //Add bonus to account
-         $bonus_balance = 0; $deposit_balance =0;$wallet_balance=0; 
-         $exist = User::where('id', $referral_id)
+        $exist = User::where('id', $referral_id)
             ->where('wallet_is_created', 1)
             ->exists();
-          if( $exist){
-              $bonus = Bonus::where('user_id', $referral_id)->first();
-              $bonus_balance = $bonus->balance + $referral_bonus;
-              $deposit_balance =  $bonus->deposit + $referral_bonus;
-               
-                Bonus::where('user_id', $referral_id)
-                         ->update(
-                            ['balance' =>$bonus_balance,
-                            'deposit'=>$deposit_balance
-                           ]);
+
+        if ($exist) {
+
+            $wallet = Wallet::where('user_id', $referral_id)->first();
+
+            if ($wallet) {
+
+                $bonus_balance = $wallet->bonus + $referral_bonus;
+
+                Wallet::where('user_id', $referral_id)->update([
+                    'bonus' => $bonus_balance,
+                ]);
+
+
+                BonusHistory::create([
+                    'user_id' => $referral_id,
+                    'referred_user_id' => $referred_user_id,
+                    'amount' => $referral_bonus
+                ]);
             }
-
-
-        //Update notification history
-        Notification::create([
-            'user_id' => $lastInsertedId,
-            'message_title' => 'Welcome Message',
-            'messages' => 'Welcome to Zepa Solutions, Your trusted partner for convenient verification,airtime, data, cable, product and services, and ID solutions. etc. ',
-        ]);
-
-        event(new Registered($user));
-        Auth::login($user);
-
-        return response()->json(['status' => 200, 'redirect_url' => url('kyc')]);
-
+        }
     }
 }
