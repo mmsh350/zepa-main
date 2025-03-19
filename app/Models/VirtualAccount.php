@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Virtual_Accounts extends Model
+class VirtualAccount extends Model
 {
     use HasFactory;
 
@@ -16,5 +16,6 @@ class Virtual_Accounts extends Model
         'accountNo',
         'accountName',
         'bankName',
+        'status',
     ];
 }

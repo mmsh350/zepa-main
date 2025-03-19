@@ -1,12 +1,10 @@
 @extends('layouts.dashboard')
-@section('title', 'Settings')
+@section('title', 'Dashboard')
 @section('content')
     <div class="page">
-        <!------App Header ----->
+
         @include('components.app-header')
         @include('components.app-sidebar')
-
-
 
         <!-- Start::app-content -->
         <div class="main-content app-content">
@@ -60,10 +58,10 @@
                                                             <div>
                                                                 <p class="text-muted mb-0">Wallet Balance</p>
                                                                 <h4 class="fw-semibold mt-1">
-                                                                    &#x20A6;{{ number_format($wallet_balance), 2 }}
+                                                                    &#x20A6;{{ $wallet_balance }}
                                                                 </h4>
                                                             </div>
-                                                            <div class="text-center ">
+                                                            <div class="text-center">
                                                                 <a href="{{ route('more-services', 'funding') }}">
                                                                     <img class="img-fluid" width="38%"
                                                                         src="{{ asset('assets/images/apps/fund.png') }}">
@@ -94,7 +92,7 @@
                                                             <div>
                                                                 <p class="text-muted mb-0">Referral Bonus</p>
                                                                 <h4 class="fw-semibold mt-1">
-                                                                    &#x20A6;{{ number_format($bonus_balance), 2 }}</h4>
+                                                                    &#x20A6;{{ $bonus_balance }}</h4>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -117,7 +115,8 @@
                                                             class="d-flex align-items-center justify-content-between flex-wrap">
                                                             <div>
                                                                 <p class="text-muted mb-0">Transactions</p>
-                                                                <h4 class="fw-semibold mt-1">{{ $transaction_count }}
+                                                                <h4 class="fw-semibold mt-1">
+                                                                    {{ number_format($transaction_count) }}
                                                                 </h4>
                                                             </div>
                                                             <div id="crm-total-deals"></div>
@@ -205,48 +204,56 @@
                                                 </div>
                                             </div>
                                             <div class="card-body">
-                                                <small class="fw-semibold">Fund your wallet instantly by depositing
-                                                    into the virtual account number</small>
-                                                <ul class="list-unstyled crm-top-deals mb-0 mt-3">
-                                                    @if ($virtual_accounts != null)
-                                                        @foreach ($virtual_accounts as $data)
-                                                            <li>
-                                                                <div class="d-flex align-items-top flex-wrap">
-                                                                    <div class="me-2">
-                                                                        <span class="avatar avatar-sm avatar-rounded">
-                                                                            @if ($data->bankName == 'Wema bank')
-                                                                                <img src="{{ asset('assets/images/wema.jpg') }}"
-                                                                                    alt="">
-                                                                            @elseif($data->bankName == 'Moniepoint Microfinance Bank')
-                                                                                <img src="{{ asset('assets/images/moniepoint.jpg') }}"
-                                                                                    alt="">
-                                                                            @elseif($data->bankName == 'PalmPay')
-                                                                                <img src="{{ asset('assets/images/palmpay.png') }}"
-                                                                                    alt="">
-                                                                            @else
-                                                                                <img src="{{ asset('assets/images/sterling.png') }}"
-                                                                                    alt="">
-                                                                            @endif
-                                                                        </span>
+                                                @if ($virtual_funding->is_enabled)
+                                                    <small class="fw-semibold">Fund your wallet instantly by depositing
+                                                        into the virtual account number</small>
+                                                    <ul class="list-unstyled crm-top-deals mb-0 mt-3">
+                                                        @if ($virtual_accounts != null)
+                                                            @foreach ($virtual_accounts as $accounts)
+                                                                <li>
+                                                                    <div class="d-flex align-items-top flex-wrap">
+                                                                        <div class="me-2">
+                                                                            <span class="avatar avatar-sm avatar-rounded">
+                                                                                @if ($accounts->bankName == 'Wema bank')
+                                                                                    <img src="{{ asset('assets/images/wema.jpg') }}"
+                                                                                        alt="">
+                                                                                @elseif($accounts->bankName == 'Moniepoint Microfinance Bank')
+                                                                                    <img src="{{ asset('assets/images/moniepoint.jpg') }}"
+                                                                                        alt="">
+                                                                                @elseif($accounts->bankName == 'PalmPay')
+                                                                                    <img src="{{ asset('assets/images/palmpay.png') }}"
+                                                                                        alt="">
+                                                                                @else
+                                                                                    <img src="{{ asset('assets/images/sterling.png') }}"
+                                                                                        alt="">
+                                                                                @endif
+                                                                            </span>
+                                                                        </div>
+                                                                        <div class="flex-fill">
+                                                                            <p class="fw-semibold mb-0">
+                                                                                {{ $accounts->accountName }}</p>
+                                                                            <span
+                                                                                class="fs-14 acctno">{{ $accounts->accountNo }}</span>
+                                                                            <br>
+                                                                            <span class=" fs-12">{{ $accounts->bankName }}
+                                                                            </span>
+                                                                        </div>
+                                                                        <div class="fw-semibold fs-15"><a href="#"
+                                                                                class="btn btn-light btn-sm copy-account-number">Copy</a>
+                                                                        </div>
                                                                     </div>
-                                                                    <div class="flex-fill">
-                                                                        <p class="fw-semibold mb-0">
-                                                                            {{ $data->accountName }}</p>
-                                                                        <span
-                                                                            class="fs-14 acctno">{{ $data->accountNo }}</span>
-                                                                        <br>
-                                                                        <span class=" fs-12">{{ $data->bankName }}
-                                                                        </span>
-                                                                    </div>
-                                                                    <div class="fw-semibold fs-15"><a href="#"
-                                                                            class="btn btn-light btn-sm copy-account-number">Copy</a>
-                                                                    </div>
-                                                                </div>
-                                                            </li>
-                                                        @endforeach
-                                                    @endif
-                                                </ul>
-                                                <hr>
+                                                                </li>
+                                                            @endforeach
+                                                        @endif
+                                                    </ul>
+                                                    <hr>
+                                                @else
+                                                    <p class="fw-bold text-center"> <i
+                                                            class="bi bi-slash-circle text-danger">
+                                                            &nbsp;</i>Virtual Account
+                                                        Disabled</p>
+                                                @endif
+
                                                 <center>
                                                     <a href="{{ route('support') }}">
                                                         <small class="fw-semibol text-danger">If your funds is not
@@ -345,9 +352,9 @@
                                             <div class="card-body" style="background:#fafafc;">
                                                 @if (!$transactions->isEmpty())
                                                     @php
-                                                        $currentPage = $transactions->currentPage(); // Current page number
-                                                        $perPage = $transactions->perPage(); // Number of items per page
-                                                        $serialNumber = ($currentPage - 1) * $perPage + 1; // Starting serial number for current page
+                                                        $currentPage = $transactions->currentPage();
+                                                        $perPage = $transactions->perPage();
+                                                        $serialNumber = ($currentPage - 1) * $perPage + 1;
                                                     @endphp
                                                     <div class="table-responsive">
                                                         <table class="table text-nowrap"
@@ -363,25 +370,25 @@
                                                             </thead>
                                                             <tbody>
                                                                 @php $i = 1; @endphp
-                                                                @foreach ($transactions as $data)
+                                                                @foreach ($transactions as $transaction)
                                                                     <tr>
                                                                         <th scope="row">{{ $serialNumber++ }}</th>
-                                                                        <td>{{ date('F j, Y', strtotime($data->created_at)) }}
+                                                                        <td>{{ date('F j, Y', strtotime($transaction->created_at)) }}
                                                                         </td>
-                                                                        <td>{{ $data->service_type }}</td>
+                                                                        <td>{{ $transaction->service_type }}</td>
                                                                         <td>
-                                                                            @if ($data->status == 'Approved')
+                                                                            @if ($transaction->status == 'Approved')
                                                                                 <span
-                                                                                    class="badge bg-outline-success">{{ $data->status }}</span>
-                                                                            @elseif ($data->status == 'Rejected')
+                                                                                    class="badge bg-outline-success">{{ $transaction->status }}</span>
+                                                                            @elseif ($transaction->status == 'Rejected')
                                                                                 <span
-                                                                                    class="badge bg-outline-danger">{{ $data->status }}</span>
-                                                                            @elseif ($data->status == 'Pending')
+                                                                                    class="badge bg-outline-danger">{{ $transaction->status }}</span>
+                                                                            @elseif ($transaction->status == 'Pending')
                                                                                 <span
-                                                                                    class="badge bg-outline-warning">{{ $data->status }}</span>
+                                                                                    class="badge bg-outline-warning">{{ $transaction->status }}</span>
                                                                             @endif
                                                                         </td>
-                                                                        <td>{{ $data->service_description }}</td>
+                                                                        <td>{{ $transaction->service_description }}</td>
                                                                     </tr>
                                                                     @php $i++ @endphp
                                                                 @endforeach
@@ -409,6 +416,18 @@
                 </div>
             </div>
         </div>
+    </div>
+@endsection
+@push('page-js')
+    <script>
+        const marqueeInner = document.querySelector('.marquee-inner');
 
+        marqueeInner.addEventListener('mouseover', () => {
+            marqueeInner.style.animationPlayState = 'paused';
+        });
 
-    @endsection
+        marqueeInner.addEventListener('mouseout', () => {
+            marqueeInner.style.animationPlayState = 'running';
+        });
+    </script>
+@endpush

@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Helpers\noncestrHelper;
 use App\Helpers\signatureHelper;
 use App\Models\Bonus;
+use App\Models\ManualFunding;
 use App\Models\Notification;
 use App\Models\Transaction;
 use App\Models\User;
@@ -17,6 +18,7 @@ use App\Traits\ActiveUsers;
 use App\Traits\KycVerify;
 use Carbon\Carbon;
 use App\Models\Services;
+use App\Models\VirtualAccount;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -51,10 +53,8 @@ class WalletController extends Controller
 
         if ($status == 'Pending') {
             return redirect()->route('verification.kyc');
-
         } elseif ($status == 'Submitted') {
             return view('kyc-status')->with(compact('status'));
-
         } elseif ($status == 'Rejected') {
             return view('kyc-status')->with(compact('status'));
         } else {
@@ -87,7 +87,6 @@ class WalletController extends Controller
                 ->with(compact('deposit_balance'))
                 ->with(compact('notifycount'));
         }
-
     }
 
     public function claimBonus($user_id)
@@ -128,7 +127,8 @@ class WalletController extends Controller
 
             Wallet::where('user_id', $this->loginUserId)->update([
                 'balance' => $new_wallet_balance,
-                'deposit' => $new_deposit_balance]);
+                'deposit' => $new_deposit_balance
+            ]);
 
             Bonus::where('user_id', $this->loginUserId)->update(['balance' => $new_bonus_balance]);
 
@@ -141,7 +141,7 @@ class WalletController extends Controller
                 $referenceno .= substr($gen, (rand() % (strlen($gen))), 1);
             }
 
-            $payer_name = auth()->user()->first_name.' '.Auth::user()->last_name;
+            $payer_name = auth()->user()->first_name . ' ' . Auth::user()->last_name;
             $payer_email = auth()->user()->email;
             $payer_phone = auth()->user()->phone_number;
 
@@ -152,7 +152,7 @@ class WalletController extends Controller
                 'payer_phone' => $payer_phone,
                 'referenceId' => $referenceno,
                 'service_type' => 'Bonus Claim',
-                'service_description' => 'Wallet credited with ₦'.number_format($bonus_to_transfer, 2),
+                'service_description' => 'Wallet credited with ₦' . number_format($bonus_to_transfer, 2),
                 'amount' => $bonus_to_transfer,
                 'gateway' => 'Wallet',
                 'status' => 'Approved',
@@ -161,7 +161,7 @@ class WalletController extends Controller
             Notification::create([
                 'user_id' => $this->loginUserId,
                 'message_title' => 'Bonus Claim',
-                'messages' => 'Bonus claim to wallet  ₦'.number_format($bonus_to_transfer, 2),
+                'messages' => 'Bonus claim to wallet  ₦' . number_format($bonus_to_transfer, 2),
             ]);
 
             $successMessage = 'Your bonus has been claimed and added to your main wallet. Congratulations!';
@@ -170,50 +170,32 @@ class WalletController extends Controller
         } else {
             return redirect()->back()->with('error', 'You are not eligible to claim the bonus at this time. Please ensure your referrals have completed the required minimum of 5 transactions to qualify.');
         }
-
     }
 
     public function p2p()
     {
 
-        //Check if user is Disabled
+        //Enhance via middleware later
         if ($this->is_active() != 1) {
             Auth::logout();
 
             return view('error');
         }
 
-        //Check if user is Pending, Rejected, or Verified KYC
-        $status = $this->is_verified();
+        $notifications = Notification::where('user_id', $this->loginUserId)
+            ->where('status', 'unread')
+            ->orderByDesc('id')
+            ->take(3)
+            ->get();
 
-        if ($status == 'Pending') {
-            return redirect()->route('verification.kyc');
+        $notifyCount = $notifications->count();
+        $notificationsEnabled = Auth::user()->notification;
 
-        } elseif ($status == 'Submitted') {
-            return view('kyc-status')->with(compact('status'));
-
-        } elseif ($status == 'Rejected') {
-            return view('kyc-status')->with(compact('status'));
-        } else {
-
-            //Notification Data
-            $notifications = Notification::all()->where('user_id', $this->loginUserId)
-                ->sortByDesc('id')
-                ->where('status', 'unread')
-                ->take(3);
-
-            //Notification Count
-            $notifycount = 0;
-            $notifycount = Notification::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'unread')
-                ->count();
-
-            return view('p2p')
-                ->with(compact('notifications'))
-                ->with(compact('notifycount'));
-        }
-
+        return view('p2p', [
+            'notifications' => $notifications,
+            'notifyCount' => $notifyCount,
+            'notificationsEnabled' => $notificationsEnabled,
+        ]);
     }
 
     public function transfer(Request $request)
@@ -277,21 +259,21 @@ class WalletController extends Controller
                     $referenceno .= substr($gen, (rand() % (strlen($gen))), 1);
                 }
 
-                $payer_name = auth()->user()->first_name.' '.Auth::user()->last_name;
+                $payer_name = auth()->user()->first_name . ' ' . Auth::user()->last_name;
                 $payer_email = auth()->user()->email;
                 $payer_phone = auth()->user()->phone_number;
 
                 Transaction::insert(
                     [[
                         'user_id' => $this->loginUserId,
-                        'payer_name' =>  $Receiver_details->first_name.' '.$Receiver_details->last_name,
+                        'payer_name' =>  $Receiver_details->first_name . ' ' . $Receiver_details->last_name,
                         'payer_email' => $Receiver_details->email,
                         'payer_phone' => $Receiver_details->phone_number,
                         'referenceId' => $referenceno,
                         'service_type' => 'Wallet Transfer',
-                        'service_description' => 'Wallet debitted with ₦'.number_format($request->Amount, 2).'
+                        'service_description' => 'Wallet debitted with ₦' . number_format($request->Amount, 2) . '
                         transferred to
-                        ('.$Receiver_details->first_name.' '.$Receiver_details->last_name.')',
+                        (' . $Receiver_details->first_name . ' ' . $Receiver_details->last_name . ')',
                         'amount' => $request->Amount,
                         'gateway' => 'Wallet',
                         'status' => 'Approved',
@@ -304,8 +286,10 @@ class WalletController extends Controller
                         'payer_phone' => $payer_phone,
                         'referenceId' => $referenceno,
                         'service_type' => 'Wallet Top up',
-                        'service_description' => 'Wallet creditted with ₦'.number_format($request->Amount,
-                        2).' By ('.$payer_name.')',
+                        'service_description' => 'Wallet creditted with ₦' . number_format(
+                            $request->Amount,
+                            2
+                        ) . ' By (' . $payer_name . ')',
                         'amount' => $request->Amount,
                         'gateway' => 'Wallet',
                         'status' => 'Approved',
@@ -316,28 +300,26 @@ class WalletController extends Controller
 
                 //Notifocation
                 //In App Notification
-                Notification::insert([[
-                    'user_id' => $this->loginUserId,
-                    'message_title' => 'Wallet Transfer',
-                    'messages' => 'Transfer of ₦'.number_format($request->Amount, 2).' was successful',
-                ],
+                Notification::insert([
+                    [
+                        'user_id' => $this->loginUserId,
+                        'message_title' => 'Wallet Transfer',
+                        'messages' => 'Transfer of ₦' . number_format($request->Amount, 2) . ' was successful',
+                    ],
                     [
                         'user_id' => $results->id,
                         'message_title' => 'Wallet Top up',
-                        'messages' => 'Wallet Credited with ₦'.number_format($request->Amount, 2),
-                    ]]);
+                        'messages' => 'Wallet Credited with ₦' . number_format($request->Amount, 2),
+                    ]
+                ]);
 
-                      $successMessage = 'Transfer Successful';
+                $successMessage = 'Transfer Successful';
 
-                      // Correctly format the link
-                      $link = '&nbsp; <a href="' . route('reciept', $referenceno) . '"><i class="bi bi-download"></i>
+                // Correctly format the link
+                $link = '&nbsp; <a href="' . route('reciept', $referenceno) . '"><i class="bi bi-download"></i>
                           Download Receipt</a>';
-                       return redirect()->back()->with('success', $successMessage . ' ' . $link);
-
-
-
+                return redirect()->back()->with('success', $successMessage . ' ' . $link);
             }
-
         } else {
             return redirect()->back()->with('error', 'Sorry Wallet ID does not exist !');
         }
@@ -345,60 +327,56 @@ class WalletController extends Controller
         $successMessage = '';
 
         return redirect()->back()->with('success', $successMessage);
-
     }
 
     public function funding()
     {
-        //Check if user is Disabled
+        //Enhance via middleware later
         if ($this->is_active() != 1) {
             Auth::logout();
 
             return view('error');
         }
 
-        //Check if user is Pending, Rejected, or Verified KYC
-        $status = $this->is_verified();
+        $notifications = Notification::where('user_id', $this->loginUserId)
+            ->where('status', 'unread')
+            ->orderByDesc('id')
+            ->take(3)
+            ->get();
 
-        if ($status == 'Pending') {
-            return redirect()->route('verification.kyc');
+        $notifyCount = $notifications->count();
 
-        } elseif ($status == 'Submitted') {
-            return view('kyc-status')->with(compact('status'));
+        $virtual_accounts = VirtualAccount::where('status', '1')
+            ->where('user_id', $this->loginUserId)
+            ->take(2)
+            ->get();
 
-        } elseif ($status == 'Rejected') {
-            return view('kyc-status')->with(compact('status'));
-        } else {
+        $wallet_balance = Wallet::where('user_id', $this->loginUserId)->value('balance') ?? 0;
 
-            //Notification Data
-            $notifications = Notification::all()->where('user_id', $this->loginUserId)
-                ->sortByDesc('id')
-                ->where('status', 'unread')
-                ->take(3);
+        $deposit = Wallet::where('user_id', $this->loginUserId)->value('deposit') ?? 0;
 
-            //Notification Count
-            $notifycount = 0;
-            $notifycount = Notification::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'unread')
-                ->count();
+        $spent =  $deposit -  $wallet_balance;
 
-            //Return all Virtual Accounts
-            $virtaul_accounts = Virtual_Accounts::all()->where('status',1)->where('user_id', $this->loginUserId)->take(2);
+        $notificationsEnabled = Auth::user()->notification;
 
-            //Return Wallet and Bonus Balance
-            $wallet = Wallet::where('user_id', $this->loginUserId)->first();
-            $wallet_balance = $wallet->balance;
-            $deposit = $wallet->deposit;
+        $manual_funding = DB::table('service_statuses')->where('service_id', 3)->first();
 
-            return view('funding')
-                ->with(compact('deposit'))
-                ->with(compact('wallet_balance'))
-                ->with(compact('virtaul_accounts'))
-                ->with(compact('notifications'))
-                ->with(compact('notifycount'));
-        }
+        $online_funding = DB::table('service_statuses')->where('service_id', 4)->first();
 
+        $virtual_funding = DB::table('service_statuses')->where('service_id', 5)->first();
+
+        return view('funding', [
+            'deposit' =>  number_format($deposit, 2),
+            'wallet_balance' => number_format($wallet_balance, 2),
+            'virtual_accounts' => $virtual_accounts,
+            'notifications' => $notifications,
+            'notifyCount' => $notifyCount,
+            'notificationsEnabled' =>  $notificationsEnabled,
+            'spent' => $spent,
+            'manual_funding' => $manual_funding,
+            'online_funding' => $online_funding,
+            'virtual_funding' => $virtual_funding,
+        ]);
     }
 
     public function getReciever(Request $request)
@@ -422,7 +400,6 @@ class WalletController extends Controller
             } else {
                 return response()->json($reciever['full_name']);
             }
-
         } else {
             return null;
         }
@@ -431,57 +408,53 @@ class WalletController extends Controller
     public function getUserdetails(Request $request)
     {
 
-       
-       $query = User::where('phone_number', $request->walletID);
 
-       $reciever = $query->first();
+        $query = User::where('phone_number', $request->walletID);
+
+        $reciever = $query->first();
 
         if ($reciever) {
             return response()->json($reciever);
         } else {
             return response()->json(['message' => 'User not found'], 404);
         }
-
     }
 
 
     public function verify(Request $request)
     {
 
-    $pmethod = $request->pmethod;
+        $pmethod = $request->pmethod;
 
-    // Paystack Channel
-    if($pmethod == 'paystack')
-    {
+        // Paystack Channel
+        if ($pmethod == 'paystack') {
 
 
-            return response()->json(['code'=>'201']);
+            return response()->json(['code' => '201']);
+        }
+        //Monie Point Channel
+        else if ($pmethod == 'moniepoint') {
 
-    }
-    //Monie Point Channel
-    else if($pmethod == 'moniepoint')
-    {
+            $payer_name = Auth::user()->first_name . ' ' . Auth::user()->last_name;
+            $payer_email = auth()->user()->email;
+            $payer_phone = auth()->user()->phone_number;
 
-    $payer_name = Auth::user()->first_name.' '. Auth::user()->last_name;
-    $payer_email = auth()->user()->email;
-    $payer_phone = auth()->user()->phone_number;
-
-    // $user = Transaction::insert([
-    // 'user_id' => $this->loginUserId,
-    // //'payerid' => '',
-    // 'payer_name' => $payer_name,
-    // 'payer_email' => $payer_email,
-    // 'payer_phone' => $payer_phone,
-    // 'referenceId' => $request->ref,
-    //  'service_type' => 'Wallet Topup',
-    // 'service_description' => 'Your wallet have been credited with ₦'.number_format($request->amt, 2),
-    // 'amount' => $request->amt,
-    // 'type' => '',
-    // 'gateway' => 'Monnify',
-    // 'status' => 'Pending',
-    // 'created_at' => Carbon::now(),
-    // 'updated_at' => Carbon::now(),
-    // ]);
+            // $user = Transaction::insert([
+            // 'user_id' => $this->loginUserId,
+            // //'payerid' => '',
+            // 'payer_name' => $payer_name,
+            // 'payer_email' => $payer_email,
+            // 'payer_phone' => $payer_phone,
+            // 'referenceId' => $request->ref,
+            //  'service_type' => 'Wallet Topup',
+            // 'service_description' => 'Your wallet have been credited with ₦'.number_format($request->amt, 2),
+            // 'amount' => $request->amt,
+            // 'type' => '',
+            // 'gateway' => 'Monnify',
+            // 'status' => 'Pending',
+            // 'created_at' => Carbon::now(),
+            // 'updated_at' => Carbon::now(),
+            // ]);
 
 
             // //Update Wallet balance
@@ -496,13 +469,13 @@ class WalletController extends Controller
 
 
 
-              // Correctly format the link
-              $link = route('reciept', $request->ref);
+            // Correctly format the link
+            $link = route('reciept', $request->ref);
 
-       return response()->json(['code'=>'200', 'link'=>$link]);
+            return response()->json(['code' => '200', 'link' => $link]);
+        }
     }
-    }
-     public function showPayout()
+    public function showPayout()
     {
 
         // Notification Data
@@ -521,8 +494,8 @@ class WalletController extends Controller
         // Return Wallet and Bonus Balance
         $wallet = Wallet::where('user_id', $this->loginUserId)->first();
         $walletBalance = number_format($wallet->balance, 2);
-        
-          $getCharges = Services::where('service_code', '150')
+
+        $getCharges = Services::where('service_code', '150')
             ->where('category', 'charges')
             ->where('type', 'PAYOUT')
             ->first();
@@ -530,8 +503,7 @@ class WalletController extends Controller
         $charges = $getCharges->amount;
 
         // Return view with the necessary data
-        return view('payout', compact('notifications', 'notifycount', 'notificationsEnabled', 'walletBalance','charges'));
-
+        return view('payout', compact('notifications', 'notifycount', 'notificationsEnabled', 'walletBalance', 'charges'));
     }
 
     public function isServiceEnabled($serviceId)
@@ -544,7 +516,6 @@ class WalletController extends Controller
         }
 
         return false;
-
     }
 
     public function transactionLimitCheck($amount)
@@ -573,7 +544,6 @@ class WalletController extends Controller
         }
 
         return true;
-
     }
 
     public function checkWalletBalance($amount)
@@ -618,8 +588,8 @@ class WalletController extends Controller
         );
 
         $amount = $request->amount;
-        
-       $getCharges = Services::where('service_code', '150')
+
+        $getCharges = Services::where('service_code', '150')
             ->where('category', 'charges')
             ->where('type', 'PAYOUT')
             ->first();
@@ -647,7 +617,7 @@ class WalletController extends Controller
 
         $walletBalance = $walletCheck['balance'];
 
-        $payer_name = auth()->user()->first_name.' '.Auth::user()->last_name;
+        $payer_name = auth()->user()->first_name . ' ' . Auth::user()->last_name;
         $payer_phone = auth()->user()->phone_number;
         $payer_email = auth()->user()->email;
         $payer_phone = auth()->user()->phone_number;
@@ -680,7 +650,7 @@ class WalletController extends Controller
 
             $signature = signatureHelper::generate_signature($data, config('keys.private'));
 
-            $url = env('BASE_URL3').'api/v2/merchant/payment/payout';
+            $url = env('BASE_URL3') . 'api/v2/merchant/payment/payout';
             $token = env('BEARER_TOKEN');
             $headers = [
                 'Accept: application/json, text/plain, */*',
@@ -705,7 +675,7 @@ class WalletController extends Controller
 
             // Check for cURL errors
             if (curl_errno($ch)) {
-                throw new \Exception('cURL Error: '.curl_error($ch));
+                throw new \Exception('cURL Error: ' . curl_error($ch));
             }
 
             // Close cURL session
@@ -749,56 +719,6 @@ class WalletController extends Controller
                     Notification::create([
                         'user_id' => $this->loginUserId,
                         'message_title' => 'Payout',
-                        'messages' => 'Payout from wallet  ₦'.number_format($final_amount, 2),
-                    ]);
-
-                    //update user transaction count
-                    DB::table('user_transactions')->insert([
-                        'user_id' => $this->loginUserId,
-                        'amount' => $final_amount,
-                        'transaction_date' => Carbon::now()->format('Y-m-d'),
-                        'transaction_type' => 'transfer',
-                    ]);
-
-                    $successMessage = 'Transfer Successful';
-
-                    $link = '&nbsp; <a href="'.route('reciept', $referenceno).'"><i class="bi bi-download"></i>
-                 Download Receipt</a>';
-
-                    return redirect()->back()->with('success', $successMessage.' '.$link);
-                }
-
-            }
-            
-            
-            if (isset($response['respMsg']) && $response['respMsg'] === 'success') {
-                
-                    $referenceno = $response['data']['orderId'];
-                   // $newBalance = $walletBalance - ($amount + $charges); //new balance plus transfer fee
-
-                    // Update wallet balance
-                   // Wallet::where('user_id', $this->loginUserId)->update([
-                    //    'balance' => $newBalance,
-                  //  ]);
-
-                    Transaction::create([
-                        'user_id' => $this->loginUserId,
-                        'payer_name' => $payer_name,
-                        'payer_email' => $payer_email,
-                        'payer_phone' => $payer_phone,
-                        'referenceId' => $referenceno,
-                        'service_type' => 'Payout',
-                        'service_description' => "Wallet Payout to {$request->accountNumber}" . ($request->reference ? "|desc|{$request->reference}" : "|NA"),
-                        'amount' => $final_amount,
-                        'gateway' => 'Wallet',
-                        'status' => 'Pending',
-                    ]);
-
-
-                    //In App Notification
-                    Notification::create([
-                        'user_id' => $this->loginUserId,
-                        'message_title' => 'Payout',
                         'messages' => 'Payout from wallet  ₦' . number_format($final_amount, 2),
                     ]);
 
@@ -813,33 +733,82 @@ class WalletController extends Controller
                     $successMessage = 'Transfer Successful';
 
                     $link = '&nbsp; <a href="' . route('reciept', $referenceno) . '"><i class="bi bi-download"></i>
-                     Download Receipt</a>';
+                 Download Receipt</a>';
 
                     return redirect()->back()->with('success', $successMessage . ' ' . $link);
+                }
+            }
+
+
+            if (isset($response['respMsg']) && $response['respMsg'] === 'success') {
+
+                $referenceno = $response['data']['orderId'];
+                // $newBalance = $walletBalance - ($amount + $charges); //new balance plus transfer fee
+
+                // Update wallet balance
+                // Wallet::where('user_id', $this->loginUserId)->update([
+                //    'balance' => $newBalance,
+                //  ]);
+
+                Transaction::create([
+                    'user_id' => $this->loginUserId,
+                    'payer_name' => $payer_name,
+                    'payer_email' => $payer_email,
+                    'payer_phone' => $payer_phone,
+                    'referenceId' => $referenceno,
+                    'service_type' => 'Payout',
+                    'service_description' => "Wallet Payout to {$request->accountNumber}" . ($request->reference ? "|desc|{$request->reference}" : "|NA"),
+                    'amount' => $final_amount,
+                    'gateway' => 'Wallet',
+                    'status' => 'Pending',
+                ]);
+
+
+                //In App Notification
+                Notification::create([
+                    'user_id' => $this->loginUserId,
+                    'message_title' => 'Payout',
+                    'messages' => 'Payout from wallet  ₦' . number_format($final_amount, 2),
+                ]);
+
+                //update user transaction count
+                DB::table('user_transactions')->insert([
+                    'user_id' => $this->loginUserId,
+                    'amount' => $final_amount,
+                    'transaction_date' => Carbon::now()->format('Y-m-d'),
+                    'transaction_type' => 'transfer',
+                ]);
+
+                $successMessage = 'Transfer Successful';
+
+                $link = '&nbsp; <a href="' . route('reciept', $referenceno) . '"><i class="bi bi-download"></i>
+                     Download Receipt</a>';
+
+                return redirect()->back()->with('success', $successMessage . ' ' . $link);
             }
 
             // Failure logic
             $errorMessage = $response['respMsg'] ?? 'Transaction failed.';
 
             return redirect()->back()->with('error', $errorMessage);
-
         } catch (\Exception $e) {
-            Log::error('Error in get Account Details: '.$e->getMessage());
-            $errorMessage = 'Transaction failed.'.$response['respMsg'] ?? 'Transaction failed.';
+            Log::error('Error in get Account Details: ' . $e->getMessage());
+            $errorMessage = 'Transaction failed.' . $response['respMsg'] ?? 'Transaction failed.';
 
             return redirect()->back()->with('error', $errorMessage);
         }
     }
-    
-     public function store(Request $request){
+
+    public function store(Request $request)
+    {
 
         $request->validate([
-                'amount' => 'required|numeric',
-                'type' => 'required|in:transfer,bank_deposit',
-                'senders_bank' => 'required|string',
-                'senders_name' => 'required|string',
-                'date' => 'required|date',
-            ]);
+            'amount' => 'required|numeric',
+            'type' => 'required|in:transfer,bank_deposit',
+            'senders_bank' => 'required|string',
+            'senders_name' => 'required|string',
+            'date' => 'required|date',
+        ]);
 
         $count = DB::table('manual_funding_request')
             ->where('user_id', $this->loginUserId)
@@ -848,53 +817,52 @@ class WalletController extends Controller
 
         if ($count == 5) {
 
-           return response()->json(['code'=>11,'message' => 'Note: You have reached the maximum limit of ('.$count.') Pending requests. Please wait until one of your requests is processed before submitting additional requests. Once a request is completed, you will be able to add more.']);
+            return response()->json(['code' => 11, 'message' => 'Note: You have reached the maximum limit of (' . $count . ') Pending requests. Please wait until one of your requests is processed before submitting additional requests. Once a request is completed, you will be able to add more.']);
         }
 
 
-                    $referenceno = '';
-                    srand((float) microtime() * 1000000);
-                    $gen = '123456123456789071234567890890';
-                    $gen .= 'aBCdefghijklmn123opq45rs67tuv89wxyz';
+        $referenceno = '';
+        srand((float) microtime() * 1000000);
+        $gen = '123456123456789071234567890890';
+        $gen .= 'aBCdefghijklmn123opq45rs67tuv89wxyz';
 
-                    for ($i = 0; $i < 12; $i++) {
-                        $referenceno .= substr($gen, (rand() % (strlen($gen))), 1);
-                    }
+        for ($i = 0; $i < 12; $i++) {
+            $referenceno .= substr($gen, (rand() % (strlen($gen))), 1);
+        }
 
-                    $payer_name = auth()->user()->first_name . ' ' . Auth::user()->last_name;
-                    $payer_email = auth()->user()->email;
-                    $payer_phone = auth()->user()->phone_number;
+        $payer_name = auth()->user()->first_name . ' ' . Auth::user()->last_name;
+        $payer_email = auth()->user()->email;
+        $payer_phone = auth()->user()->phone_number;
 
-                   $trx_id = Transaction::create([
-                        'user_id' => $this->loginUserId,
-                        'payer_name' => $payer_name,
-                        'payer_email' => $payer_email,
-                        'payer_phone' => $payer_phone,
-                        'referenceId' => $referenceno,
-                        'service_type' => 'Manual Funding',
-                        'service_description' => 'Manual Wallet funding of ' . number_format($request->amount, 2),
-                        'amount' => $request->amount,
-                        'gateway' => 'Wallet',
-                        'status' => 'Pending',
-                    ]);
+        $trx_id = Transaction::create([
+            'user_id' => $this->loginUserId,
+            'payer_name' => $payer_name,
+            'payer_email' => $payer_email,
+            'payer_phone' => $payer_phone,
+            'referenceId' => $referenceno,
+            'service_type' => 'Manual Funding',
+            'service_description' => 'Manual Wallet funding of ' . number_format($request->amount, 2),
+            'amount' => $request->amount,
+            'gateway' => 'Wallet',
+            'status' => 'Pending',
+        ]);
 
-                $trx_id = $trx_id->id;
+        $trx_id = $trx_id->id;
 
-                DB::table('manual_funding_request')->insert([
-                'user_id' => auth()->id(),
-                'tnx_id' => $trx_id,
-                'amount' => $request->amount,
-                'type' => $request->type,
-                'senders_bank' => $request->senders_bank,
-                'senders_name' => $request->senders_name,
-                'date' => $request->date,
-                'status' => 'pending',
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+        DB::table('manual_funding_request')->insert([
+            'user_id' => auth()->id(),
+            'tnx_id' => $trx_id,
+            'amount' => $request->amount,
+            'type' => $request->type,
+            'senders_bank' => $request->senders_bank,
+            'senders_name' => $request->senders_name,
+            'date' => $request->date,
+            'status' => 'pending',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
 
-          return response()->json(['message' => 'Request submitted successfully!']);
+        return response()->json(['message' => 'Request submitted successfully!']);
     }
-
 }
