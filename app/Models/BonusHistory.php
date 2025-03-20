@@ -12,4 +12,10 @@ class BonusHistory extends Model
         'amount',
         'type',
     ];
+
+    // Define the inverse relationship
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 }

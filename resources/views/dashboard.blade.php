@@ -90,7 +90,7 @@
                                                         <div
                                                             class="d-flex align-items-center justify-content-between flex-wrap">
                                                             <div>
-                                                                <p class="text-muted mb-0">Referral Bonus</p>
+                                                                <p class="text-muted mb-0">Unclaimed Bonus</p>
                                                                 <h4 class="fw-semibold mt-1">
                                                                     &#x20A6;{{ $bonus_balance }}</h4>
                                                             </div>

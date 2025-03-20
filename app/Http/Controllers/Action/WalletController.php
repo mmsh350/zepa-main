@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Helpers\noncestrHelper;
 use App\Helpers\signatureHelper;
 use App\Models\Bonus;
+use App\Models\BonusHistory;
 use App\Models\ManualFunding;
 use App\Models\Notification;
 use App\Models\Transaction;
@@ -19,6 +20,8 @@ use App\Traits\KycVerify;
 use Carbon\Carbon;
 use App\Models\Services;
 use App\Models\VirtualAccount;
+use App\Services\NotificationService;
+use App\Services\TransactionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -27,142 +30,129 @@ use Illuminate\Support\Facades\Log;
 class WalletController extends Controller
 {
     use ActiveUsers;
-    use KycVerify;
 
-    // Class-level property
+
     protected $loginUserId;
 
-    // Constructor to initialize the property
-    public function __construct()
+    protected $notificationService;
+    protected $transactionService;
+    public function __construct(NotificationService $notificationService, TransactionService $transactionService)
     {
+        $this->notificationService = $notificationService;
+        $this->transactionService = $transactionService;
         $this->loginUserId = Auth::id();
     }
+
+
 
     public function claim()
     {
 
-        //Check if user is Disabled
+        //Enhance via middleware later
         if ($this->is_active() != 1) {
             Auth::logout();
 
             return view('error');
         }
 
-        //Check if user is Pending, Rejected, or Verified KYC
-        $status = $this->is_verified();
+        $notifications = Notification::where('user_id', $this->loginUserId)
+            ->where('status', 'unread')
+            ->orderByDesc('id')
+            ->take(3)
+            ->get();
 
-        if ($status == 'Pending') {
-            return redirect()->route('verification.kyc');
-        } elseif ($status == 'Submitted') {
-            return view('kyc-status')->with(compact('status'));
-        } elseif ($status == 'Rejected') {
-            return view('kyc-status')->with(compact('status'));
-        } else {
+        $notifyCount = $notifications->count();
 
-            //Notification Data
-            $notifications = Notification::all()->where('user_id', $this->loginUserId)
-                ->sortByDesc('id')
-                ->where('status', 'unread')
-                ->take(3);
+        $wallet = Wallet::where('user_id', $this->loginUserId)->first();
 
-            //Notification Count
-            $notifycount = 0;
-            $notifycount = Notification::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'unread')
-                ->count();
+        //get all referral bonus 
+        $bonus_balance = BonusHistory::where('user_id', $this->loginUserId)->sum('amount');
 
-            $bonus = Bonus::where('user_id', $this->loginUserId)->first();
-            $bonus_balance = $bonus->balance;
-            $deposit_balance = $bonus->deposit;
+        $unclaimed_balance = $wallet->bonus ?? 0;
 
-            $users = User::where('refferral_id', $this->loginUserId)
-                ->withCount('transactions')
-                ->paginate(10);
+        $claimed_balance = $bonus_balance -  $unclaimed_balance;
 
-            return view('claim')
-                ->with(compact('users'))
-                ->with(compact('notifications'))
-                ->with(compact('bonus_balance'))
-                ->with(compact('deposit_balance'))
-                ->with(compact('notifycount'));
-        }
+        $notificationsEnabled = Auth::user()->notification;
+
+        $transaction = DB::table('claim_counts')->first();
+
+        $transaction_count = $transaction->transaction_count ?? 5;
+
+        $users = User::where('refferral_id', $this->loginUserId)
+            ->withCount('transactions')
+            ->paginate(10);
+
+        $userIds = $users->pluck('id');
+        $bonusHistories = BonusHistory::whereIn('referred_user_id', $userIds)->get();
+
+        $bonusHistoriesGrouped = $bonusHistories->groupBy('referred_user_id');
+
+        $usersWithBonuses = $users->map(function ($user) use ($bonusHistoriesGrouped) {
+
+            $totalBonusAmount = $bonusHistoriesGrouped->has($user->id)
+                ? $bonusHistoriesGrouped->get($user->id)->sum('amount')
+                : 0;
+
+            $user->total_bonus_amount = $totalBonusAmount;
+
+            return $user;
+        });
+
+        $users->setCollection($usersWithBonuses);
+
+        return view('claim', [
+            'claimed_balance' =>  number_format($claimed_balance, 2),
+            'unclaimed_balance' =>  number_format($unclaimed_balance, 2),
+            'bonus_balance' => number_format($bonus_balance, 2),
+            'notifications' => $notifications,
+            'notifyCount' => $notifyCount,
+            'notificationsEnabled' =>  $notificationsEnabled,
+            'transaction_count' => $transaction_count,
+            'users' =>  $users,
+        ]);
     }
 
     public function claimBonus($user_id)
     {
 
-        //Claiming Allow
-        $users = User::where('id', $user_id)->get();
         $count = 0;
         $claim_id = 0;
-        $user_count = 0;
 
-        // Fetch the transaction count for each user
-        foreach ($users as $user) {
-            $count = $user->transaction_count = $user->transactions()->count();
-            $claim_id = $user->claim_id;
-        }
+        $transaction = DB::table('claim_counts')->first();
+        $transaction_count = $transaction->transaction_count ?? 5;
+
+        $user = User::where('id', $user_id)->first();
+        $count = $user->transactions()->count();
+        $claim_id = $user->claim_id;
+
 
         if ($user_id == $this->loginUserId) {
             return redirect()->back()->with('error', 'Nice try! But our system is one step ahead!');
-        } elseif ($claim_id == 0 && $count >= 5) {
+        } elseif ($claim_id == 0 && $count >= $transaction_count) {
 
-            $user_count = User::where('refferral_id', $this->loginUserId)
-                ->where('claim_id', 0)->count();
+            $bonus = BonusHistory::where('referred_user_id', $user_id)->first();
+
+            $wallet = Wallet::where('user_id', $bonus->user_id)->first();
+
+            $new_wallet_balance = $wallet->balance + $bonus->amount;
+            $new_deposit_balance = $wallet->deposit + $bonus->amount;
+            $new_bonus_balance = $wallet->bonus - $bonus->amount;
+
+            Wallet::where('user_id',  $bonus->user_id)->update([
+                'balance' => $new_wallet_balance,
+                'deposit' => $new_deposit_balance,
+                'bonus' => $new_bonus_balance
+            ]);
 
             User::where('id', $user_id)->update(['claim_id' => 1]);
 
-            $bonus = Bonus::where('user_id', $this->loginUserId)->first();
+            $this->transactionService->createTransaction($bonus->user_id, $bonus->amount);
 
-            $wallet = Wallet::where('user_id', $this->loginUserId)->first();
-
-            //Divide bonus base on number of users
-            $bonus_to_transfer = $bonus->balance / $user_count;
-
-            $new_wallet_balance = $wallet->balance + $bonus_to_transfer;
-            $new_deposit_balance = $wallet->deposit + $bonus_to_transfer;
-
-            $new_bonus_balance = $bonus->balance - $bonus_to_transfer;
-
-            Wallet::where('user_id', $this->loginUserId)->update([
-                'balance' => $new_wallet_balance,
-                'deposit' => $new_deposit_balance
-            ]);
-
-            Bonus::where('user_id', $this->loginUserId)->update(['balance' => $new_bonus_balance]);
-
-            $referenceno = '';
-            srand((float) microtime() * 1000000);
-            $gen = '123456123456789071234567890890';
-            $gen .= 'aBCdefghijklmn123opq45rs67tuv89wxyz'; // if you need alphabatic also
-            $ddesc = '';
-            for ($i = 0; $i < 12; $i++) {
-                $referenceno .= substr($gen, (rand() % (strlen($gen))), 1);
-            }
-
-            $payer_name = auth()->user()->first_name . ' ' . Auth::user()->last_name;
-            $payer_email = auth()->user()->email;
-            $payer_phone = auth()->user()->phone_number;
-
-            Transaction::create([
-                'user_id' => $this->loginUserId,
-                'payer_name' => $payer_name,
-                'payer_email' => $payer_email,
-                'payer_phone' => $payer_phone,
-                'referenceId' => $referenceno,
-                'service_type' => 'Bonus Claim',
-                'service_description' => 'Wallet credited with ₦' . number_format($bonus_to_transfer, 2),
-                'amount' => $bonus_to_transfer,
-                'gateway' => 'Wallet',
-                'status' => 'Approved',
-            ]);
-            //In App Notification
-            Notification::create([
-                'user_id' => $this->loginUserId,
-                'message_title' => 'Bonus Claim',
-                'messages' => 'Bonus claim to wallet  ₦' . number_format($bonus_to_transfer, 2),
-            ]);
+            $this->notificationService->createNotification(
+                $bonus->user_id,
+                'Bonus Claim',
+                'Bonus claim to wallet  ₦' . number_format($bonus->amount, 2),
+            );
 
             $successMessage = 'Your bonus has been claimed and added to your main wallet. Congratulations!';
 

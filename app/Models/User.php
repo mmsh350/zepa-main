@@ -61,4 +61,9 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasMany(Transaction::class);
     }
+    // Define the relationship
+    public function bonuses()
+    {
+        return $this->hasMany(BonusHistory::class, 'user_id');
+    }
 }
