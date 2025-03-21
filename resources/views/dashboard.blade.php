@@ -33,6 +33,20 @@
                                 class="bi bi-x"></i></button>
                     </div>
                 @endif
+                @if ($status == 'Pending')
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        We're excited to have you on board! However, we need to verify your identity before activating your
+                        account. Simply click the link below to complete the verification process<br> <a type="button"
+                            class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#kycModal">
+                            Verify KYC Status
+                        </a>
+                    </div>
+                @endif
+                @if (session('success'))
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        {!! session('success') !!}
+                    </div>
+                @endif
                 <!-- End::page-header -->
                 <!-- Start::row-1 -->
                 <div class="row">
@@ -388,7 +402,8 @@
                                                                                     class="badge bg-outline-warning">{{ $transaction->status }}</span>
                                                                             @endif
                                                                         </td>
-                                                                        <td>{{ $transaction->service_description }}</td>
+                                                                        <td>{{ $transaction->service_description }}
+                                                                        </td>
                                                                     </tr>
                                                                     @php $i++ @endphp
                                                                 @endforeach
@@ -417,6 +432,56 @@
             </div>
         </div>
     </div>
+    <div class="modal fade" id="kycModal" tabindex="-1" aria-labelledby="kycModal" data-bs-keyboard="true"
+        data-bs-backdrop="static" data-bs-keyboard="false">
+
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h6 class="modal-title" id="staticBackdropLabel2">Verify Account
+                    </h6>
+                </div>
+                <div class="modal-body">
+                    We're excited to have you on board! However, we need to verify your identity before activating your
+                    account. provide your Identification number below.
+                </div>
+
+                @if ($errors->any())
+                    <div class="alert alert-danger">
+                        <ul>
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+                @if (session('error'))
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        {{ session('error') }}
+                    </div>
+                @endif
+                <form id="verify" name="verifyForm" method="POST" action="{{ route('verify-user') }}">
+                    @csrf
+                    <div class="d-flex justify-content-center align-items-center ">
+                        <div class="col-md-6 col-lg-6">
+                            <div class="mb-3">
+                                <p class="mb-2 text-muted text-center">Enter your BVN No.</p>
+                                <input type="text" id="bvn" name="bvn" class="form-control text-center"
+                                    maxlength="11" required />
+                            </div>
+                            <div class="text-center mb-3">
+                                <button type="submit" id="submit" class="btn btn-primary">
+                                    <i class="lar la-check-circle"></i> Verify Now
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+
 @endsection
 @push('page-js')
     <script>
@@ -428,6 +493,26 @@
 
         marqueeInner.addEventListener('mouseout', () => {
             marqueeInner.style.animationPlayState = 'running';
+        });
+    </script>
+    <script>
+        // Trigger modal if KYC is pending
+        @if ($kycPending)
+            const kycModal = new bootstrap.Modal(document.getElementById('kycModal'));
+            kycModal.show();
+        @endif
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('verify');
+            const submitButton = document.getElementById('submit');
+
+            if (form && submitButton) {
+                form.addEventListener('submit', function() {
+                    submitButton.disabled = true;
+                    submitButton.innerText = 'Verifying ...';
+                });
+            }
         });
     </script>
 @endpush

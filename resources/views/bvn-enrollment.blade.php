@@ -407,7 +407,7 @@
     <script src="{{ asset('assets/js/logout.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const form = document.querySelector('form');
+            const form = document.getElementById('enroll');
             const submitButton = document.getElementById('submit');
 
             form.addEventListener('submit', function() {

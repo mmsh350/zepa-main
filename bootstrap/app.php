@@ -22,8 +22,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
-
             'check.agent' => \App\Http\Middleware\CheckAgentRole::class,
+            'is_kyced' => \App\Http\Middleware\IsKyced::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

@@ -4,12 +4,10 @@ use App\Http\Controllers\Action\AgencyController;
 use App\Http\Controllers\Action\BankVerificationController;
 use App\Http\Controllers\Action\BVNController;
 use App\Http\Controllers\Action\DashboardController;
-use App\Http\Controllers\Action\kycController;
 use App\Http\Controllers\Action\NotificationController;
 use App\Http\Controllers\Action\ServicesController;
 use App\Http\Controllers\Action\UtilityController;
 use App\Http\Controllers\Action\WalletController;
-use App\Http\Controllers\MonnifyWebhookController;
 use App\Http\Controllers\NIN\NINController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Action\TransactionController;
@@ -18,6 +16,7 @@ use Illuminate\Support\Facades\Route;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Action\BankController;
+use App\Http\Controllers\PaymentWebhookController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -61,18 +60,25 @@ Route::get('/terms-and-conditions', function () {
 })->name('terms');
 
 
-Route::post('/palmpay/webhook', [MonnifyWebhookController::class, 'handleWebhook']);
+Route::post('/palmpay/webhook', [PaymentWebhookController::class, 'handleWebhook']);
 
-Route::middleware('auth', 'verified')->group(function () {
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'show'])->name('dashboard');
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::post('/verify-user', [DashboardController::class, 'verifyUser'])->name('verify-user');
+});
+
+Route::middleware('auth', 'verified', 'is_kyced')->group(function () {
 
     //General
     Route::post('/read', [NotificationController::class, 'read'])->name('read');
 
     //Dashboard
-    Route::get('/dashboard', [DashboardController::class, 'show'])->name('dashboard');
+    // Route::get('/dashboard', [DashboardController::class, 'show'])->name('dashboard');
 
     //Transaction
     Route::get('/transactions', [DashboardController::class, 'show'])->name('transactions');
+
 
 
     //BVN Verify
@@ -167,7 +173,7 @@ Route::middleware('auth', 'verified')->group(function () {
     Route::get('/premiumSlip/{id}', [NINController::class, 'premiumSlip'])->name("premiumSlip");
     //End PDF Downloads Routes ------------------------------------------------------------------------------------------
 
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::post('/pin-verify', [ProfileController::class, 'verifyPin'])->name('pin.verify');
     Route::post('/pin-update', [ProfileController::class, 'updatePin'])->name('pin.update');
