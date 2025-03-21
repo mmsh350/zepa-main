@@ -23,7 +23,7 @@ $(document).ready(function () {
 					$('#btnlogin').html("Loading dashboard ...");
 					setTimeout(function () {
 						$('#btnlogin').prop("disabled", false);
-						location.href = 'dashboard';
+						window.location.href = '/dashboard';
 					}, 3000);
 				},
 				error: function (data) {
