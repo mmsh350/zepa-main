@@ -192,36 +192,60 @@
                     </a>
                 </li>
                 </li>
-                {{-- <!-- Start::slide -->
-                    @if (Auth::user()->role == 'agent')
-                    <li class="slide has-sub @if ($menu == 'agency') open @endif">
-                        <a href="javascript:void(0);" class="side-menu__item @if ($menu == 'agency') active @endif">
-                        <i class="bx bx-user-plus side-menu__icon"></i>
-                        <span class="side-menu__label">Agent Services </span>
-                        <i class="fe fe-chevron-right side-menu__angle"></i>
+                <!-- Start::slide -->
+                @if (Auth::user()->role == 'agent')
+                    <li
+                        class="slide has-sub {{ request()->is('bvn-modification') || request()->is('crm') || request()->is('account-upgrade') || request()->is('crm2') || request()->is('bvn-enrollment') || request()->is('nin-services') || request()->is('vnin-to-nibss') ? 'open' : '' }}">
+                        <a href="javascript:void(0);"
+                            class="side-menu__item {{ request()->is('bvn-modification') || request()->is('crm') || request()->is('account-upgrade') || request()->is('crm2') || request()->is('bvn-enrollment') || request()->is('nin-services') || request()->is('vnin-to-nibss') ? 'active' : '' }}">
+                            <i class="bx bx-user-plus side-menu__icon"></i>
+                            <span class="side-menu__label">Agent Services </span>
+                            <i class="fe fe-chevron-right side-menu__angle"></i>
                         </a>
                         <ul class="slide-menu child1">
+
                             <li class="slide">
-                                <a href="{{route('bvn-modification')}}" class="side-menu__item  @if ($title == 'bvn-mod') active @endif">BVN Modification </a>
+                                <a href="{{ route('nin-services') }}"
+                                    class="side-menu__item  {{ request()->is('nin-services') ? 'active' : '' }}">NIN
+                                    Services </a>
                             </li>
                             <li class="slide">
-                                <a href="{{route('crm')}}" class="side-menu__item @if ($title == 'crm') active @endif">CRM</a>
+                                <a href="{{ route('vnin-to-nibss') }}"
+                                    class="side-menu__item {{ request()->is('vnin-to-nibss') ? 'active' : '' }}">VNIN
+                                    to
+                                    NIBSS </a>
                             </li>
                             <li class="slide">
-                                <a href="{{route('account-upgrade')}}"  class="side-menu__item @if ($title == 'upgrade') active @endif">Account Upgrade
+                                <a href="{{ route('bvn-modification') }}"
+                                    class="side-menu__item {{ request()->is('bvn-modification') ? 'active' : '' }}">BVN
+                                    Modification </a>
+                            </li>
+                            <li class="slide">
+                                <a href="{{ route('crm') }}"
+                                    class="side-menu__item {{ request()->is('crm') ? 'active' : '' }}">CRM</a>
+                            </li>
+                            <li class="slide">
+                                <a href="{{ route('account-upgrade') }}"
+                                    class="side-menu__item {{ request()->is('account-upgrade') ? 'active' : '' }}">Account
+                                    Upgrade
                                 </a>
                             </li>
                             <li class="slide">
-                                <a href="{{route('crm2')}}" class="side-menu__item @if ($title == 'crm2') active @endif">Find BVN using Phone and DOB
+                                <a href="{{ route('crm2') }}"
+                                    class="side-menu__item {{ request()->is('crm2') ? 'active' : '' }}">Find
+                                    BVN
+                                    using Phone and DOB
                                 </a>
                             </li>
                             <li class="slide">
-                                <a href="{{route('bvn-enrollment')}}"  class="side-menu__item @if ($title == 'enrollment') active @endif"">BVN Enrollement Agency Request
+                                <a href="{{ route('bvn-enrollment') }}"
+                                    class="side-menu__item {{ request()->is('bvn-enrollment') ? 'active' : '' }}">BVN
+                                    Enrollement Agency Request
                                 </a>
                             </li>
                         </ul>
                     </li>
-                        @endif --}}
+                @endif
 
                 <li class="slide">
                     <a href="{{ route('transactions') }}"

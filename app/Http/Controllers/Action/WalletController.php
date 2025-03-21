@@ -468,20 +468,16 @@ class WalletController extends Controller
     public function showPayout()
     {
 
-        // Notification Data
         $notifications = Notification::where('user_id', $this->loginUserId)
             ->where('status', 'unread')
             ->latest()
             ->take(3)
             ->get();
 
-        // Notification Count
-        $notifycount = $notifications->count();
+        $notifyCount = $notifications->count();
 
-        // Check if the user has notifications enabled
         $notificationsEnabled = Auth::user()->notification;
 
-        // Return Wallet and Bonus Balance
         $wallet = Wallet::where('user_id', $this->loginUserId)->first();
         $walletBalance = number_format($wallet->balance, 2);
 
@@ -492,8 +488,7 @@ class WalletController extends Controller
 
         $charges = $getCharges->amount;
 
-        // Return view with the necessary data
-        return view('payout', compact('notifications', 'notifycount', 'notificationsEnabled', 'walletBalance', 'charges'));
+        return view('payout', compact('notifications', 'notifyCount', 'notificationsEnabled', 'walletBalance', 'charges'));
     }
 
     public function isServiceEnabled($serviceId)

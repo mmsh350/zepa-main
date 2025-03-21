@@ -15,83 +15,77 @@ use Illuminate\Support\Facades\RateLimiter;
 class TransactionController extends Controller
 {
     use ActiveUsers;
-    use KycVerify;
 
     public function show(Request $request)
     {
-    //Login User Id
-    $loginUserId = Auth::id();
 
-    //Check if user is Disabled
-    if ($this->is_active() != 1) {
-        Auth::logout();
-        return view('error');
-    }
+        $loginUserId = Auth::id();
 
-    //Check KYC status
-    $status = $this->is_verified();
+        //Check if user is Disabled
+        if ($this->is_active() != 1) {
+            Auth::logout();
+            return view('error');
+        }
 
-    if ($status == 'Pending') {
-            return redirect()->route('verification.kyc');
-    }
-    elseif ($status == 'Submitted' || $status == 'Rejected') {
-            return view('kyc-status')->with(compact('status'));
-    } else {
-            //Notification Data
-            $notifications = Notification::where('user_id', $loginUserId)
-            ->orderBy('id', 'desc')
+        $notifications = Notification::where('user_id', $loginUserId)
             ->where('status', 'unread')
+            ->orderByDesc('id')
             ->take(3)
             ->get();
 
-    //Notification Count
-    $notifycount = Notification::where('user_id', $loginUserId)
-    ->where('status', 'unread')
-    ->count();
+        $notifyCount = Notification::where('user_id', $loginUserId)
+            ->where('status', 'unread')
+            ->count();
 
-    // Get filter values from the request
-    $statusFilter = $request->input('status');
-    $referenceFilter = $request->input('reference');
-    $serviceTypeFilter = $request->input('service_type');
+        $notificationsEnabled = Auth::user()->notification;
 
-    // Get all transactions and apply filters
-    $transactions = Transaction::where('user_id', $loginUserId)
-    ->when($statusFilter, function ($query, $statusFilter) {
-    return $query->where('status', $statusFilter);
-    })
-    ->when($referenceFilter, function ($query, $referenceFilter) {
-    return $query->where('referenceId', 'like', "%$referenceFilter%");
-    })
-   ->when($serviceTypeFilter, function ($query, $serviceTypeFilter) {
-   return $query->where('service_type', 'like', "%$serviceTypeFilter%");
-   })
+        // Get filter values from the request
+        $statusFilter = $request->input('status');
+        $referenceFilter = $request->input('reference');
+        $serviceTypeFilter = $request->input('service_type');
 
-    ->orderBy('id', 'desc')
-    ->paginate(10);
+        // Get all transactions and apply filters
+        $transactions = Transaction::where('user_id', $loginUserId)
+            ->when($statusFilter, function ($query, $statusFilter) {
+                return $query->where('status', $statusFilter);
+            })
+            ->when($referenceFilter, function ($query, $referenceFilter) {
+                return $query->where('referenceId', 'like', "%$referenceFilter%");
+            })
+            ->when($serviceTypeFilter, function ($query, $serviceTypeFilter) {
+                return $query->where('service_type', 'like', "%$serviceTypeFilter%");
+            })
 
-    return view('transaction')
-    ->with(compact('transactions', 'notifications', 'notifycount'));
+            ->orderBy('id', 'desc')
+            ->paginate(10);
+
+        return view('transaction', [
+            'transactions' => $transactions,
+            'notifications' => $notifications,
+            'notifyCount' => $notifyCount,
+            'notificationsEnabled' => $notificationsEnabled,
+        ]);
     }
+
+
+    public function reciept(Request $request)
+    {
+
+        $loginUserId = Auth::id();
+
+        // Retrieve the transaction based on the referenceId
+        $transaction = Transaction::where('referenceId', $request->referenceId)
+            ->where('user_id', $loginUserId)
+            ->first();
+
+        if (!$transaction) {
+            // Handle case when the transaction is not found
+            abort(404);
+        }
+
+        return view('receipt', ['transaction' => $transaction]);
     }
 
-
-    public function reciept(Request $request){
-
-         $loginUserId = Auth::id();
-
-         // Retrieve the transaction based on the referenceId
-         $transaction = Transaction::where('referenceId', $request->referenceId)
-        ->where('user_id', $loginUserId)
-         ->first();
-
-         if (!$transaction) {
-         // Handle case when the transaction is not found
-         abort(404);
-         }
-
-         return view('receipt', ['transaction' => $transaction]);
-    }
-    
     public function validatePin(Request $request)
     {
         $request->validate([
@@ -99,7 +93,7 @@ class TransactionController extends Controller
         ]);
 
         $userId = auth()->id(); // Get the authenticated user ID
-        $rateLimitKey = 'pin-attempts:'.$userId;
+        $rateLimitKey = 'pin-attempts:' . $userId;
 
         // Check if the user has reached the limit
         if (RateLimiter::tooManyAttempts($rateLimitKey, 3)) {
@@ -107,7 +101,7 @@ class TransactionController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'Too many failed attempts. Please try again after '.gmdate('i:s', $secondsUntilUnlock).' minutes.',
+                'message' => 'Too many failed attempts. Please try again after ' . gmdate('i:s', $secondsUntilUnlock) . ' minutes.',
             ]);
         }
 

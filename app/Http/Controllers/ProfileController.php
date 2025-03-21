@@ -36,24 +36,26 @@ class ProfileController extends Controller
     {
         $loginUserId = Auth::id();
 
-        //Notification Data
-        $notifications = Notification::all()->where('user_id', $loginUserId)
-            ->sortByDesc('id')
+        $notifications = Notification::where('user_id', $loginUserId)
             ->where('status', 'unread')
-            ->take(3);
+            ->orderByDesc('id')
+            ->take(3)
+            ->get();
 
-        //Notification Count
-        $notifycount = 0;
-        $notifycount = Notification::all()
-            ->where('user_id', $loginUserId)
+        $notifyCount = Notification::where('user_id', $loginUserId)
             ->where('status', 'unread')
             ->count();
 
+        $notificationsEnabled = Auth::user()->notification;
+
         $is_enabled = User::where('id', $this->loginUserId)->value('notification');
 
-        return view('profile.edit',
-            compact('notifications', 'notifycount', 'is_enabled'));
-
+        return view('profile.edit', compact(
+            'notifications',
+            'notifyCount',
+            'is_enabled',
+            'notificationsEnabled'
+        ));
     }
 
     /**
@@ -126,13 +128,13 @@ class ProfileController extends Controller
         }
 
         // Rate limiting for OTP requests
-        $key = 'otp-request-'.auth()->id();
+        $key = 'otp-request-' . auth()->id();
 
         if (RateLimiter::tooManyAttempts($key, 3)) {
 
-              $seconds = RateLimiter::availableIn($key);
+            $seconds = RateLimiter::availableIn($key);
 
-              return response()->json(['error' => 'Too many OTP requests. Please try again in '. ceil($seconds / 60) .
+            return response()->json(['error' => 'Too many OTP requests. Please try again in ' . ceil($seconds / 60) .
                 ' minutes.'], 429);
         }
 
@@ -145,7 +147,7 @@ class ProfileController extends Controller
         Mail::to(auth()->user()->email)->send(new OtpMail($otp, auth()->user()->first_name));
 
         // Increment the rate limiter
-         RateLimiter::hit($key, 900);
+        RateLimiter::hit($key, 900);
 
         return response()->json(['success' => true, 'message' => 'OTP has been sent.']);
     }
@@ -254,7 +256,7 @@ class ProfileController extends Controller
                     $referenceno .= substr($data, (rand() % (strlen($data))), 1);
                 }
 
-                $payer_name = auth()->user()->first_name.' '.Auth::user()->last_name;
+                $payer_name = auth()->user()->first_name . ' ' . Auth::user()->last_name;
                 $payer_email = auth()->user()->email;
                 $payer_phone = auth()->user()->phone_number;
 
@@ -265,7 +267,7 @@ class ProfileController extends Controller
                     'payer_phone' => $payer_phone,
                     'referenceId' => $referenceno,
                     'service_type' => 'Account Update Request',
-                    'service_description' => 'Wallet debitted with Upgrade Fee of ₦'.number_format($ServiceFee, 2),
+                    'service_description' => 'Wallet debitted with Upgrade Fee of ₦' . number_format($ServiceFee, 2),
                     'amount' => $ServiceFee,
                     'gateway' => 'Wallet',
                     'status' => 'Pending',
@@ -285,10 +287,7 @@ class ProfileController extends Controller
                 ]);
 
                 return response()->json(['status' => 200, 'msg' => 'Upgrade Request Submitted']);
-
             }
-
         }
-
     }
 }

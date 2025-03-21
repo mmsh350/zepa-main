@@ -153,7 +153,9 @@
                                                                         <th scope="row">{{ $serialNumber++ }}</th>
                                                                         <td>{{ $data->email }}</td>
                                                                         <td>
-                                                                            {{ $data->total_bonus_amount }}</td>
+                                                                            &#8358;
+                                                                            {{ number_format($data->total_bonus_amount, 2) }}
+                                                                        </td>
                                                                         <td>
                                                                             @if ($data->transactions_count >= $transaction_count && $data->claim_id == 0)
                                                                                 <a href="{{ route('claim-bonus', $data->id) }}"

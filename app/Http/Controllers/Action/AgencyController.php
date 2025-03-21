@@ -24,7 +24,7 @@ class AgencyController extends Controller
     use ActiveUsers;
     use KycVerify;
 
-     protected $loginUserId;
+    protected $loginUserId;
 
     // Constructor to initialize the property
     public function __construct()
@@ -44,78 +44,67 @@ class AgencyController extends Controller
             return view('error');
         }
 
-        //Check if user is Pending, Rejected, or Verified KYC
-        $status = $this->is_verified();
 
-        if ($status == 'Pending') {
-            return redirect()->route('verification.kyc');
+        $notifications = Notification::where('user_id', $this->loginUserId)
+            ->where('status', 'unread')
+            ->orderByDesc('id')
+            ->take(3)
+            ->get();
 
-        } elseif ($status == 'Submitted') {
-            return view('kyc-status')->with(compact('status'));
+        $notifyCount = Notification::where('user_id', $this->loginUserId)
+            ->where('status', 'unread')
+            ->count();
 
-        } elseif ($status == 'Rejected') {
-            return view('kyc-status')->with(compact('status'));
-        } else {
+        $notificationsEnabled = Auth::user()->notification;
 
-            //Notification Data
-            $notifications = Notification::all()->where('user_id', $this->loginUserId)
-                ->sortByDesc('id')
-                ->where('status', 'unread')
-                ->take(3);
 
-            //Notification Count
-            $notifycount = 0;
-            $notifycount = Notification::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'unread')
-                ->count();
+        //Notification Data
+        $pending = CRM_REQUEST::all()
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'pending')
+            ->count();
 
-              //Notification Data
-            $pending = CRM_REQUEST::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'pending')
-                ->count();
+        $resolved = CRM_REQUEST::all()
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'resolved')
+            ->count();
 
-           $resolved = CRM_REQUEST::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'resolved')
-                ->count();
+        $rejected = CRM_REQUEST::all()
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'rejected')
+            ->count();
 
-          $rejected = CRM_REQUEST::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'rejected')
-                ->count();
+        $total_request = CRM_REQUEST::all()
+            ->where('user_id', $this->loginUserId)
+            ->count();
 
-         $total_request = CRM_REQUEST::all()
-                ->where('user_id', $this->loginUserId)
-                ->count();
+        $crm = CRM_REQUEST::where('user_id', $this->loginUserId)
+            ->orderBy('id', 'desc')
+            ->paginate(5);
 
-            $crm = CRM_REQUEST::where('user_id', $this->loginUserId)
-                ->orderBy('id', 'desc')
-                ->paginate(5);
+        $fee = 0;
+        $fee  = Services::where('service_code', '110')->first();
+        $ServiceFee =  $fee->amount;
 
-            $fee = 0;
-            $fee  = Services::where('service_code', '110')->first();
-            $ServiceFee =  $fee->amount;
-
-            return view('crm')
-                ->with(compact('notifications'))
-                ->with(compact('ServiceFee'))
-                ->with(compact('pending'))
-                ->with(compact('resolved'))
-                ->with(compact('rejected'))
-                ->with(compact('total_request'))
-                ->with(compact('crm'))
-                ->with(compact('notifycount'));
-        }
+        return view('crm', [
+            'notifications' => $notifications,
+            'ServiceFee' => $ServiceFee,
+            'pending' => $pending,
+            'resolved' => $resolved,
+            'rejected' => $rejected,
+            'total_request' => $total_request,
+            'crm' => $crm,
+            'notifyCount' => $notifyCount,
+            'notificationsEnabled' => $notificationsEnabled,
+        ]);
     }
 
 
-     //Submit Request
+    //Submit Request
     public function crmRequest(Request $request)
     {
-         $request->validate([
-            'ticket_id' =>'required|numeric|digits:20',
+        $request->validate([
+            'ticket_id' => 'required|numeric|digits:20',
             'bms_id' =>  'required|numeric|digits:8',
         ]);
 
@@ -126,281 +115,257 @@ class AgencyController extends Controller
         $ticketExists = CRM_REQUEST::where('ticket_no', $request->ticket_id)->exists();
         $bmsExists = CRM_REQUEST::where('bms_ticket_no', $request->bms_id)->exists();
 
-        if ($ticketExists || $bmsExists)
-        {
-             return redirect()->back()->with('error', 'Sorry  Ticket ID Or BMS ID No already existed!');
+        if ($ticketExists || $bmsExists) {
+            return redirect()->back()->with('error', 'Sorry  Ticket ID Or BMS ID No already existed!');
         }
 
-          $count = CRM_REQUEST::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'pending')
-                ->count();
+        $count = CRM_REQUEST::all()
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'pending')
+            ->count();
 
-         if($count == 10){
-                 return redirect()->back()->with('error', 'Note: You have reached the maximum limit of '.$count.' Pending requests. Please wait until one of your requests is processed before submitting additional requests. Once a request is completed, you will be able to add more.');
-         }
+        if ($count == 10) {
+            return redirect()->back()->with('error', 'Note: You have reached the maximum limit of ' . $count . ' Pending requests. Please wait until one of your requests is processed before submitting additional requests. Once a request is completed, you will be able to add more.');
+        }
 
-            $ticket_id = $request->ticket_id;
-            $bms_id = $request->bms_id;
+        $ticket_id = $request->ticket_id;
+        $bms_id = $request->bms_id;
 
-             // Services Fee
-                $ServiceFee = 0;
-                $ServiceFee = Services::where('service_code', '110')->first();
-                $ServiceFee = $ServiceFee->amount;
+        // Services Fee
+        $ServiceFee = 0;
+        $ServiceFee = Services::where('service_code', '110')->first();
+        $ServiceFee = $ServiceFee->amount;
 
-           //Check if wallet is funded
-            $wallet = Wallet::where('user_id', $this->loginUserId)->first();
-            $wallet_balance = $wallet->balance;
-            $balance = 0;
+        //Check if wallet is funded
+        $wallet = Wallet::where('user_id', $this->loginUserId)->first();
+        $wallet_balance = $wallet->balance;
+        $balance = 0;
 
-            if($wallet_balance  <  $ServiceFee)
-            {
-                  return redirect()->back()->with('error', 'Sorry Wallet Not Sufficient for Transaction !');
-            }else
-            {
+        if ($wallet_balance  <  $ServiceFee) {
+            return redirect()->back()->with('error', 'Sorry Wallet Not Sufficient for Transaction !');
+        } else {
 
-                            $balance = $wallet->balance - $ServiceFee;
+            $balance = $wallet->balance - $ServiceFee;
 
-                            $affected = Wallet::where('user_id', $this->loginUserId)
-                                            ->update(['balance' =>$balance]);
+            $affected = Wallet::where('user_id', $this->loginUserId)
+                ->update(['balance' => $balance]);
 
-                        $referenceno = "";
-                        srand((double) microtime() * 1000000);
-                        $gen = "123456123456789071234567890890";
-                        $gen .= "aBCdefghijklmn123opq45rs67tuv89wxyz"; // if you need alphabatic also
-                        $ddesc ="";
-                        for ($i = 0; $i < 12; $i++) { $referenceno .= substr($gen, (rand() % (strlen($gen))), 1);}
-
-
-
-                                    $payer_name =  auth()->user()->first_name.' '. Auth::user()->last_name;
-                                    $payer_email = auth()->user()->email;
-                                    $payer_phone = auth()->user()->phone_number;
-
-                                    $trx_id = Transaction::create([
-                                        'user_id' => $this->loginUserId,
-                                        'payer_name' =>  $payer_name,
-                                        'payer_email' => $payer_email,
-                                        'payer_phone' => $payer_phone,
-                                        'referenceId' => $referenceno,
-                                        'service_type' => 'CRM Request',
-                                        'service_description' => 'Wallet debitted with a Request fee of '.number_format($ServiceFee, 2),
-                                        'amount' => $ServiceFee,
-                                        'gateway' => 'Wallet',
-                                        'status' => 'Approved',
-                                    ]);
-
-                                     $trx_id = $trx_id->id;
-
-                                      CRM_REQUEST::create([
-                                        'user_id' => $this->loginUserId,
-                                        'tnx_id' => $trx_id,
-                                        'refno' => $referenceno,
-                                        'bms_ticket_no' => $bms_id,
-                                        'ticket_no' => $ticket_id,
-                                      ]);
-
-                                //Notifocation
-                            //In App Notification
-                                Notification::create([
-                                    'user_id' => $this->loginUserId,
-                                    'message_title' => 'CRM Request',
-                                    'messages' => 'Wallet debitted with a Request fee of '.number_format($ServiceFee, 2),
-                                ]);
-
-                                $successMessage = 'CRM Request was successfully';
-                                return redirect()->back()->with('success', $successMessage);
-
-
-
-
+            $referenceno = "";
+            srand((float) microtime() * 1000000);
+            $gen = "123456123456789071234567890890";
+            $gen .= "aBCdefghijklmn123opq45rs67tuv89wxyz"; // if you need alphabatic also
+            $ddesc = "";
+            for ($i = 0; $i < 12; $i++) {
+                $referenceno .= substr($gen, (rand() % (strlen($gen))), 1);
             }
 
+
+
+            $payer_name =  auth()->user()->first_name . ' ' . Auth::user()->last_name;
+            $payer_email = auth()->user()->email;
+            $payer_phone = auth()->user()->phone_number;
+
+            $trx_id = Transaction::create([
+                'user_id' => $this->loginUserId,
+                'payer_name' =>  $payer_name,
+                'payer_email' => $payer_email,
+                'payer_phone' => $payer_phone,
+                'referenceId' => $referenceno,
+                'service_type' => 'CRM Request',
+                'service_description' => 'Wallet debitted with a Request fee of ' . number_format($ServiceFee, 2),
+                'amount' => $ServiceFee,
+                'gateway' => 'Wallet',
+                'status' => 'Approved',
+            ]);
+
+            $trx_id = $trx_id->id;
+
+            CRM_REQUEST::create([
+                'user_id' => $this->loginUserId,
+                'tnx_id' => $trx_id,
+                'refno' => $referenceno,
+                'bms_ticket_no' => $bms_id,
+                'ticket_no' => $ticket_id,
+            ]);
+
+            //Notifocation
+            //In App Notification
+            Notification::create([
+                'user_id' => $this->loginUserId,
+                'message_title' => 'CRM Request',
+                'messages' => 'Wallet debitted with a Request fee of ' . number_format($ServiceFee, 2),
+            ]);
+
+            $successMessage = 'CRM Request was successfully';
+            return redirect()->back()->with('success', $successMessage);
+        }
     }
 
     public function showCRM2(Request $request)
     {
 
-
-        //Check if user is Disabled
         if ($this->is_active() != 1) {
             Auth::logout();
 
             return view('error');
         }
 
-        //Check if user is Pending, Rejected, or Verified KYC
-        $status = $this->is_verified();
+        $notifications = Notification::where('user_id', $this->loginUserId)
+            ->where('status', 'unread')
+            ->orderByDesc('id')
+            ->take(3)
+            ->get();
 
-        if ($status == 'Pending') {
-            return redirect()->route('verification.kyc');
+        $notifyCount = Notification::where('user_id', $this->loginUserId)
+            ->where('status', 'unread')
+            ->count();
 
-        } elseif ($status == 'Submitted') {
-            return view('kyc-status')->with(compact('status'));
+        $notificationsEnabled = Auth::user()->notification;
 
-        } elseif ($status == 'Rejected') {
-            return view('kyc-status')->with(compact('status'));
-        } else {
+        //Notification Data
+        $pending = CRM_REQUEST2::all()
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'pending')
+            ->count();
 
-            //Notification Data
-            $notifications = Notification::all()->where('user_id', $this->loginUserId)
-                ->sortByDesc('id')
-                ->where('status', 'unread')
-                ->take(3);
+        $resolved = CRM_REQUEST2::all()
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'resolved')
+            ->count();
 
-            //Notification Count
-            $notifycount = 0;
-            $notifycount = Notification::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'unread')
-                ->count();
+        $rejected = CRM_REQUEST2::all()
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'rejected')
+            ->count();
 
-              //Notification Data
-            $pending = CRM_REQUEST2::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'pending')
-                ->count();
+        $total_request = CRM_REQUEST2::all()
+            ->where('user_id', $this->loginUserId)
+            ->count();
 
-           $resolved = CRM_REQUEST2::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'resolved')
-                ->count();
+        $crm = CRM_REQUEST2::where('user_id', $this->loginUserId)
+            ->orderBy('id', 'desc')
+            ->paginate(5);
 
-          $rejected = CRM_REQUEST2::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'rejected')
-                ->count();
+        $fee = 0;
+        $fee  = Services::where('service_code', '111')->first();
+        $ServiceFee =  $fee->amount;
 
-         $total_request = CRM_REQUEST2::all()
-                ->where('user_id', $this->loginUserId)
-                ->count();
-
-            $crm = CRM_REQUEST2::where('user_id', $this->loginUserId)
-                ->orderBy('id', 'desc')
-                ->paginate(5);
-
-            $fee = 0;
-            $fee  = Services::where('service_code', '111')->first();
-            $ServiceFee =  $fee->amount;
-
-            return view('crm2')
-                ->with(compact('notifications'))
-                ->with(compact('ServiceFee'))
-                ->with(compact('pending'))
-                ->with(compact('resolved'))
-                ->with(compact('rejected'))
-                ->with(compact('total_request'))
-                ->with(compact('crm'))
-                ->with(compact('notifycount'));
-        }
+        return view('crm2', [
+            'notifications' => $notifications,
+            'ServiceFee' => $ServiceFee,
+            'pending' => $pending,
+            'resolved' => $resolved,
+            'rejected' => $rejected,
+            'total_request' => $total_request,
+            'crm' => $crm,
+            'notifyCount' => $notifyCount,
+            'notificationsEnabled' => $notificationsEnabled,
+        ]);
     }
 
 
-     //Submit Request
+    //Submit Request
     public function crmRequest2(Request $request)
     {
-         $request->validate([
-            'phone_number' =>'required|numeric|digits:11',
+        $request->validate([
+            'phone_number' => 'required|numeric|digits:11',
             'surname' =>  'required|string',
         ]);
 
         //Check if ticket id existed
         $exist = CRM_REQUEST2::where('phoneno', $request->phone_number)
-        ->where('dob', $request->dob)
-        ->where('status', 'pending')
-        ->exists();
-        if ($exist)
-        {
-             return redirect()->back()->with('error', 'Sorry Request Already exist!');
+            ->where('dob', $request->dob)
+            ->where('status', 'pending')
+            ->exists();
+        if ($exist) {
+            return redirect()->back()->with('error', 'Sorry Request Already exist!');
         }
 
-          $count = CRM_REQUEST2::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'pending')
-                ->count();
+        $count = CRM_REQUEST2::all()
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'pending')
+            ->count();
 
-         if($count == 10){
-                 return redirect()->back()->with('error', 'Note: You have reached the maximum limit of '.$count.' Pending requests. Please wait until one of your requests is processed before submitting additional requests. Once a request is completed, you will be able to add more.');
-         }
+        if ($count == 10) {
+            return redirect()->back()->with('error', 'Note: You have reached the maximum limit of ' . $count . ' Pending requests. Please wait until one of your requests is processed before submitting additional requests. Once a request is completed, you will be able to add more.');
+        }
 
-            $phoneno = $request->phone_number;
-            $dob = $request->dob;
-            $surname = $request->surname;
+        $phoneno = $request->phone_number;
+        $dob = $request->dob;
+        $surname = $request->surname;
 
-             // Services Fee
-                $ServiceFee = 0;
-                $ServiceFee = Services::where('service_code', '111')->first();
-                $ServiceFee = $ServiceFee->amount;
+        // Services Fee
+        $ServiceFee = 0;
+        $ServiceFee = Services::where('service_code', '111')->first();
+        $ServiceFee = $ServiceFee->amount;
 
-           //Check if wallet is funded
-            $wallet = Wallet::where('user_id', $this->loginUserId)->first();
-            $wallet_balance = $wallet->balance;
-            $balance = 0;
+        //Check if wallet is funded
+        $wallet = Wallet::where('user_id', $this->loginUserId)->first();
+        $wallet_balance = $wallet->balance;
+        $balance = 0;
 
-            if($wallet_balance  <  $ServiceFee)
-            {
-                  return redirect()->back()->with('error', 'Sorry Wallet Not Sufficient for Transaction !');
-            }else
-            {
+        if ($wallet_balance  <  $ServiceFee) {
+            return redirect()->back()->with('error', 'Sorry Wallet Not Sufficient for Transaction !');
+        } else {
 
-                            $balance = $wallet->balance - $ServiceFee;
+            $balance = $wallet->balance - $ServiceFee;
 
-                            $affected = Wallet::where('user_id', $this->loginUserId)
-                                            ->update(['balance' =>$balance]);
+            $affected = Wallet::where('user_id', $this->loginUserId)
+                ->update(['balance' => $balance]);
 
-                        $referenceno = "";
-                        srand((double) microtime() * 1000000);
-                        $gen = "123456123456789071234567890890";
-                        $gen .= "aBCdefghijklmn123opq45rs67tuv89wxyz"; // if you need alphabatic also
-                        $ddesc ="";
-                        for ($i = 0; $i < 12; $i++) { $referenceno .= substr($gen, (rand() % (strlen($gen))), 1);}
-
-
-
-                                    $payer_name =  auth()->user()->first_name.' '. Auth::user()->last_name;
-                                    $payer_email = auth()->user()->email;
-                                    $payer_phone = auth()->user()->phone_number;
-
-                                    $trx_id = Transaction::create([
-                                        'user_id' => $this->loginUserId,
-                                        'payer_name' =>  $payer_name,
-                                        'payer_email' => $payer_email,
-                                        'payer_phone' => $payer_phone,
-                                        'referenceId' => $referenceno,
-                                        'service_type' => 'CRM Request WPD',
-                                        'service_description' => 'Wallet debitted with a Request fee of '.number_format($ServiceFee, 2),
-                                        'amount' => $ServiceFee,
-                                        'gateway' => 'Wallet',
-                                        'status' => 'Approved',
-                                    ]);
-
-                                     $trx_id = $trx_id->id;
-
-                                      CRM_REQUEST2::create([
-                                        'user_id' => $this->loginUserId,
-                                        'tnx_id' => $trx_id,
-                                        'refno' => $referenceno,
-                                        'phoneno' => $phoneno,
-                                        'dob' => $dob,
-                                        'surname'=>$surname,
-                                      ]);
-
-                                //Notifocation
-                            //In App Notification
-                                Notification::create([
-                                    'user_id' => $this->loginUserId,
-                                    'message_title' => 'CRM Request WPD',
-                                    'messages' => 'Wallet debitted with a Request fee of '.number_format($ServiceFee, 2),
-                                ]);
-
-                                $successMessage = 'CRM Request WPD was successfully';
-                                return redirect()->back()->with('success', $successMessage);
-
+            $referenceno = "";
+            srand((float) microtime() * 1000000);
+            $gen = "123456123456789071234567890890";
+            $gen .= "aBCdefghijklmn123opq45rs67tuv89wxyz"; // if you need alphabatic also
+            $ddesc = "";
+            for ($i = 0; $i < 12; $i++) {
+                $referenceno .= substr($gen, (rand() % (strlen($gen))), 1);
             }
 
+
+
+            $payer_name =  auth()->user()->first_name . ' ' . Auth::user()->last_name;
+            $payer_email = auth()->user()->email;
+            $payer_phone = auth()->user()->phone_number;
+
+            $trx_id = Transaction::create([
+                'user_id' => $this->loginUserId,
+                'payer_name' =>  $payer_name,
+                'payer_email' => $payer_email,
+                'payer_phone' => $payer_phone,
+                'referenceId' => $referenceno,
+                'service_type' => 'CRM Request WPD',
+                'service_description' => 'Wallet debitted with a Request fee of ' . number_format($ServiceFee, 2),
+                'amount' => $ServiceFee,
+                'gateway' => 'Wallet',
+                'status' => 'Approved',
+            ]);
+
+            $trx_id = $trx_id->id;
+
+            CRM_REQUEST2::create([
+                'user_id' => $this->loginUserId,
+                'tnx_id' => $trx_id,
+                'refno' => $referenceno,
+                'phoneno' => $phoneno,
+                'dob' => $dob,
+                'surname' => $surname,
+            ]);
+
+            //Notifocation
+            //In App Notification
+            Notification::create([
+                'user_id' => $this->loginUserId,
+                'message_title' => 'CRM Request WPD',
+                'messages' => 'Wallet debitted with a Request fee of ' . number_format($ServiceFee, 2),
+            ]);
+
+            $successMessage = 'CRM Request WPD was successfully';
+            return redirect()->back()->with('success', $successMessage);
+        }
     }
 
-  public function showBVN(Request $request)
+    public function showBVN(Request $request)
     {
 
         //Check if user is Disabled
@@ -410,74 +375,59 @@ class AgencyController extends Controller
             return view('error');
         }
 
-        //Check if user is Pending, Rejected, or Verified KYC
-        $status = $this->is_verified();
+        $notifications = Notification::where('user_id', $this->loginUserId)
+            ->where('status', 'unread')
+            ->orderByDesc('id')
+            ->take(3)
+            ->get();
 
-        if ($status == 'Pending') {
-            return redirect()->route('verification.kyc');
+        $notifyCount = Notification::where('user_id', $this->loginUserId)
+            ->where('status', 'unread')
+            ->count();
 
-        } elseif ($status == 'Submitted') {
-            return view('kyc-status')->with(compact('status'));
+        $notificationsEnabled = Auth::user()->notification;
 
-        } elseif ($status == 'Rejected') {
-            return view('kyc-status')->with(compact('status'));
-        } else {
+        //Notification Data
+        $pending = DB::table('bvn_modifications')
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'pending')
+            ->count();
 
-            //Notification Data
-            $notifications = Notification::all()->where('user_id', $this->loginUserId)
-                ->sortByDesc('id')
-                ->where('status', 'unread')
-                ->take(3);
+        $resolved = DB::table('bvn_modifications')
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'resolved')
+            ->count();
 
-            //Notification Count
-            $notifycount = 0;
-            $notifycount = Notification::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'unread')
-                ->count();
+        $rejected = DB::table('bvn_modifications')
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'rejected')
+            ->count();
 
-            //Notification Data
-            $pending = DB::table('bvn_modifications')
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'pending')
-                ->count();
+        $total_request = DB::table('bvn_modifications')
+            ->where('user_id', $this->loginUserId)
+            ->count();
 
-            $resolved = DB::table('bvn_modifications')
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'resolved')
-                ->count();
-
-            $rejected = DB::table('bvn_modifications')
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'rejected')
-                ->count();
-
-            $total_request = DB::table('bvn_modifications')
-                ->where('user_id', $this->loginUserId)
-                ->count();
-
-            $mod = DB::table('bvn_modifications')->where('user_id', $this->loginUserId)
-                ->orderBy('id', 'desc')
-                ->paginate(5);
+        $mod = DB::table('bvn_modifications')->where('user_id', $this->loginUserId)
+            ->orderBy('id', 'desc')
+            ->paginate(5);
 
 
-            $services = Services::where('category', 'Agency')
-            ->where('type','BMOD')
+        $services = Services::where('category', 'Agency')
+            ->where('type', 'BMOD')
             ->where('status', 'enabled')
             ->get();
 
-           return view('bvn-mod', compact(
-                        'notifications',
-                        'pending',
-                        'resolved',
-                        'rejected',
-                        'total_request',
-                        'mod',
-                        'services',
-                        'notifycount'
-                    ));
-
-        }
+        return view('bvn-mod', compact(
+            'notifications',
+            'pending',
+            'resolved',
+            'rejected',
+            'total_request',
+            'mod',
+            'services',
+            'notifyCount',
+            'notificationsEnabled'
+        ));
     }
 
     public function bvnModRequest(Request $request)
@@ -486,22 +436,22 @@ class AgencyController extends Controller
         $request->validate([
             'bvn_number' => 'required|numeric|digits:11',
             'enrollment_center' => [
-                'required', 
+                'required',
                 'string',
                 'in:First Bank,Heritage Bank,Agency Banking,Taj Bank,GTbank,Wema Bank,FCMB,Zenith Bank,Access Bank,Keystone Bank',
-                ],
+            ],
             'field_to_modify' => ['required', 'string'],
             'data_to_modify' => ['required', 'string'],
             'documents' => 'required|file|mimes:pdf|max:10240',
         ]);
 
- 
+
         // if ($request->enrollment_center === 'Agency Banking') {
         //       $request->validate([
         //       'email' => 'required|email',
-         //      'password' => ['required', 'string'],
+        //      'password' => ['required', 'string'],
 
-         //     ]);
+        //     ]);
         // } 'enrollment_center' => ['required', 'string'],
 
 
@@ -520,7 +470,7 @@ class AgencyController extends Controller
             ->count();
 
         if ($count == 20) {
-            return redirect()->back()->with('error', 'Note: You have reached the maximum limit of '.$count.' Pending requests. Please wait until one of your requests is processed before submitting additional requests. Once a request is completed, you will be able to add more.');
+            return redirect()->back()->with('error', 'Note: You have reached the maximum limit of ' . $count . ' Pending requests. Please wait until one of your requests is processed before submitting additional requests. Once a request is completed, you will be able to add more.');
         }
 
         // Services Fee
@@ -536,17 +486,17 @@ class AgencyController extends Controller
 
         if ($wallet_balance < $ServiceFee) {
             return redirect()->back()->with('error', 'Sorry Wallet Not Sufficient for Transaction! You need ₦'
-            .number_format($ServiceFee,2). ' Complete the transaction');
+                . number_format($ServiceFee, 2) . ' Complete the transaction');
         } else {
 
-             // Retrieve the validated file
-             $file = $request->file('documents');
+            // Retrieve the validated file
+            $file = $request->file('documents');
 
-             // Generate a unique file name or use the original name
-             $fileName = time().'_'.$file->getClientOriginalName();
+            // Generate a unique file name or use the original name
+            $fileName = time() . '_' . $file->getClientOriginalName();
 
-             // Move the file to the storage path
-             $filePath = $file->storeAs('Documents', $fileName, 'public');
+            // Move the file to the storage path
+            $filePath = $file->storeAs('Documents', $fileName, 'public');
 
             $balance = $wallet->balance - $ServiceFee;
 
@@ -562,7 +512,7 @@ class AgencyController extends Controller
                 $referenceno .= substr($gen, (rand() % (strlen($gen))), 1);
             }
 
-            $payer_name = auth()->user()->first_name.' '.Auth::user()->last_name;
+            $payer_name = auth()->user()->first_name . ' ' . Auth::user()->last_name;
             $payer_email = auth()->user()->email;
             $payer_phone = auth()->user()->phone_number;
 
@@ -573,7 +523,7 @@ class AgencyController extends Controller
                 'payer_phone' => $payer_phone,
                 'referenceId' => $referenceno,
                 'service_type' => 'BVN Modification Request',
-                'service_description' => 'Wallet debitted with a request fee of '.number_format($ServiceFee, 2),
+                'service_description' => 'Wallet debitted with a request fee of ' . number_format($ServiceFee, 2),
                 'amount' => $ServiceFee,
                 'gateway' => 'Wallet',
                 'status' => 'Approved',
@@ -601,296 +551,265 @@ class AgencyController extends Controller
             Notification::create([
                 'user_id' => $this->loginUserId,
                 'message_title' => 'BVN Modification Request',
-                'messages' => 'Wallet debitted with a Request fee of '.number_format($ServiceFee, 2),
+                'messages' => 'Wallet debitted with a Request fee of ' . number_format($ServiceFee, 2),
             ]);
 
             $successMessage = 'BVN Modification Request was successfully';
 
             return redirect()->back()->with('success', $successMessage);
-
         }
-
     }
-     public function showEnrollment(Request $request){
+    public function showEnrollment(Request $request)
+    {
 
-      //Check if user is Disabled
+        //Check if user is Disabled
         if ($this->is_active() != 1) {
             Auth::logout();
 
             return view('error');
         }
 
-        //Check if user is Pending, Rejected, or Verified KYC
-        $status = $this->is_verified();
 
-        if ($status == 'Pending') {
-            return redirect()->route('verification.kyc');
 
-        } elseif ($status == 'Submitted') {
-            return view('kyc-status')->with(compact('status'));
+        $notifications = Notification::where('user_id', $this->loginUserId)
+            ->where('status', 'unread')
+            ->orderByDesc('id')
+            ->take(3)
+            ->get();
 
-        } elseif ($status == 'Rejected') {
-            return view('kyc-status')->with(compact('status'));
+        $notifyCount = Notification::where('user_id', $this->loginUserId)
+            ->where('status', 'unread')
+            ->count();
+
+        $notificationsEnabled = Auth::user()->notification;
+
+        $pending = BVN_ENROLLMENT::all()
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'submitted')
+            ->count();
+
+        $resolved = BVN_ENROLLMENT::all()
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'successful')
+            ->count();
+
+        $rejected = BVN_ENROLLMENT::all()
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'rejected')
+            ->count();
+
+        $total_request = BVN_ENROLLMENT::all()
+            ->where('user_id', $this->loginUserId)
+            ->count();
+
+        $enrollments = BVN_ENROLLMENT::where('user_id', $this->loginUserId)
+            ->orderBy('id', 'desc')
+            ->paginate(5);
+
+        $fee = 0;
+        $fee  = Services::where('service_code', '117')->first();
+        $ServiceFee =  $fee->amount;
+
+        return view('bvn-enrollment', [
+            'notifications' => $notifications,
+            'ServiceFee' => $ServiceFee,
+            'pending' => $pending,
+            'resolved' => $resolved,
+            'rejected' => $rejected,
+            'total_request' => $total_request,
+            'enrollments' => $enrollments,
+            'notifyCount' => $notifyCount,
+            'notificationsEnabled' => $notificationsEnabled,
+        ]);
+    }
+
+    public function bvnEnrollmentRequest(Request $request)
+    {
+        $wallet_id  = $request->wallet_id;
+        if ($request->enrollment_type     == 1) {
+
+            $wallet_id = $request->phone;
+
+            $request->validate([
+                'enrollment_type' => 'required|numeric|digits:1',
+                'phone' => 'required|numeric|digits:11',
+                'username' => ['required', 'string'],
+                'fullname' => ['required', 'string'],
+                'state'  => ['required', 'string'],
+                'lga'  => ['required', 'string'],
+                'address'  => ['required', 'string'],
+                'email' => 'required|email|unique:bvn_enrollments,email',
+                'account_name' => 'required|string',
+                'account_number' => 'required|digits:10',
+                'bank_name' => 'required|string',
+                'bvn' => 'required|digits:11',
+            ]);
+        } else {
+            $request->validate([
+                'enrollment_type' => 'required|numeric|digits:1',
+                'wallet_id' => 'required|numeric|digits:11',
+                'phone' => 'required|numeric|digits:11',
+                'username' => ['required', 'string'],
+                'fullname' => ['required', 'string'],
+                'state'  => ['required', 'string'],
+                'lga'  => ['required', 'string'],
+                'address'  => ['required', 'string'],
+                'email' => 'required|email|unique:bvn_enrollments,email',
+                'account_name' => 'required|string',
+                'account_number' => 'required|digits:10',
+                'bank_name' => 'required|string',
+                'bvn' => 'required|digits:11',
+            ]);
+        }
+
+        // Services Fee
+        $ServiceFee = 0;
+        $ServiceFee = Services::where('service_code', '117')->first();
+        $ServiceFee = $ServiceFee->amount;
+
+        //Check if wallet is funded
+        $wallet = Wallet::where('user_id', $this->loginUserId)->first();
+        $wallet_balance = $wallet->balance;
+        $balance = 0;
+
+        if ($wallet_balance  <  $ServiceFee) {
+            return redirect()->back()->with('error', 'Sorry Wallet Not Sufficient for Transaction !');
         } else {
 
-            //Notification Data
-            $notifications = Notification::all()->where('user_id', $this->loginUserId)
-                ->sortByDesc('id')
-                ->where('status', 'unread')
-                ->take(3);
+            $balance = $wallet->balance - $ServiceFee;
 
-            //Notification Count
-            $notifycount = 0;
-            $notifycount = Notification::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'unread')
-                ->count();
+            $affected = Wallet::where('user_id', $this->loginUserId)
+                ->update(['balance' => $balance]);
 
-              //Notification Data
-            $pending = BVN_ENROLLMENT::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'submitted')
-                ->count();
-
-           $resolved = BVN_ENROLLMENT::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'successful')
-                ->count();
-
-          $rejected = BVN_ENROLLMENT::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'rejected')
-                ->count();
-
-         $total_request = BVN_ENROLLMENT::all()
-                ->where('user_id', $this->loginUserId)
-                ->count();
-
-            $enrollments = BVN_ENROLLMENT::where('user_id', $this->loginUserId)
-                ->orderBy('id', 'desc')
-                ->paginate(5);
-
-            $fee = 0;
-            $fee  = Services::where('service_code', '117')->first();
-            $ServiceFee =  $fee->amount;
-
-            return view('bvn-enrollment')
-                ->with(compact('notifications'))
-                ->with(compact('ServiceFee'))
-                ->with(compact('pending'))
-                ->with(compact('resolved'))
-                ->with(compact('rejected'))
-                ->with(compact('total_request'))
-                ->with(compact('enrollments'))
-                ->with(compact('notifycount'));
-        }
-
-     }
-
-    public function bvnEnrollmentRequest(Request $request){
-          $wallet_id  = $request->wallet_id;
-        if(  $request->enrollment_type	 == 1){
-
-              $wallet_id = $request->phone;
-
-             $request->validate([
-            'enrollment_type' =>'required|numeric|digits:1',
-            'phone' =>'required|numeric|digits:11',
-            'username' => ['required', 'string'],
-            'fullname' => ['required', 'string'],
-            'state'  => ['required', 'string'],
-            'lga'  => ['required', 'string'],
-            'address'  => ['required', 'string'],
-            'email' => 'required|email|unique:bvn_enrollments,email',
-            'account_name' => 'required|string',
-            'account_number' => 'required|digits:10',
-            'bank_name' => 'required|string',
-            'bvn' => 'required|digits:11',
-        ]);
-
-        }
-        else{
-             $request->validate([
-            'enrollment_type' =>'required|numeric|digits:1',
-            'wallet_id' =>'required|numeric|digits:11',
-            'phone' =>'required|numeric|digits:11',
-            'username' => ['required', 'string'],
-            'fullname' => ['required', 'string'],
-            'state'  => ['required', 'string'],
-            'lga'  => ['required', 'string'],
-            'address'  => ['required', 'string'],
-            'email' => 'required|email|unique:bvn_enrollments,email',
-            'account_name' => 'required|string',
-            'account_number' => 'required|digits:10',
-            'bank_name' => 'required|string',
-            'bvn' => 'required|digits:11',
-           ]);
-
-        }
-
-             // Services Fee
-            $ServiceFee = 0;
-            $ServiceFee = Services::where('service_code', '117')->first();
-            $ServiceFee = $ServiceFee->amount;
-
-           //Check if wallet is funded
-            $wallet = Wallet::where('user_id', $this->loginUserId)->first();
-            $wallet_balance = $wallet->balance;
-            $balance = 0;
-
-            if($wallet_balance  <  $ServiceFee)
-            {
-                  return redirect()->back()->with('error', 'Sorry Wallet Not Sufficient for Transaction !');
-            }else
-            {
-
-                            $balance = $wallet->balance - $ServiceFee;
-
-                            $affected = Wallet::where('user_id', $this->loginUserId)
-                                            ->update(['balance' =>$balance]);
-
-                        $referenceno = "";
-                        srand((double) microtime() * 1000000);
-                        $gen = "123456123456789071234567890890";
-                        $gen .= "aBCdefghijklmn123opq45rs67tuv89wxyz"; // if you need alphabatic also
-                        $ddesc ="";
-                        for ($i = 0; $i < 12; $i++) { $referenceno .= substr($gen, (rand() % (strlen($gen))), 1);}
-
-
-
-                                    $payer_name =  auth()->user()->first_name.' '. Auth::user()->last_name;
-                                    $payer_email = auth()->user()->email;
-                                    $payer_phone = auth()->user()->phone_number;
-
-                                    $trx_id = Transaction::create([
-                                        'user_id' => $this->loginUserId,
-                                        'payer_name' =>  $payer_name,
-                                        'payer_email' => $payer_email,
-                                        'payer_phone' => $payer_phone,
-                                        'referenceId' => $referenceno,
-                                        'service_type' => 'BVN Enrollment Request',
-                                        'service_description' => 'Wallet debitted with a request fee of '.number_format($ServiceFee, 2),
-                                        'amount' => $ServiceFee,
-                                        'gateway' => 'Wallet',
-                                        'status' => 'Approved',
-                                    ]);
-
-                                     $trx_id = $trx_id->id;
-
-                                      BVN_ENROLLMENT::create([
-                                        'user_id' => $this->loginUserId,
-                                        'tnx_id' => $trx_id,
-                                        'refno' => $referenceno,
-                                        'wallet_id' => $wallet_id,
-                                        'type' => $request->enrollment_type,
-                                        'username' => $request->username,
-                                        'fullname' => $request->fullname,
-                                        'phone_number' => $request->phone,
-                                        'email' => $request->email,
-                                        'state'=>$request->state,
-                                        'lga'=>$request->lga,
-                                        'address'=>$request->address,
-                                        'account_name' => $request->account_name,
-                                        'account_number' => $request->account_number,
-                                        'bank_name' => $request->bank_name,
-                                        'bvn' => $request->bvn,
-                                      ]);
-
-                                //Notifocation
-                            //In App Notification
-                                Notification::create([
-                                    'user_id' => $this->loginUserId,
-                                    'message_title' => 'BVN Enrollment Request',
-                                    'messages' => 'Wallet debitted with a Request fee of '.number_format($ServiceFee, 2),
-                                ]);
-
-                                $successMessage = 'BVN Enrollment Request Submitted';
-                                return redirect()->back()->with('success', $successMessage);
-
+            $referenceno = "";
+            srand((float) microtime() * 1000000);
+            $gen = "123456123456789071234567890890";
+            $gen .= "aBCdefghijklmn123opq45rs67tuv89wxyz"; // if you need alphabatic also
+            $ddesc = "";
+            for ($i = 0; $i < 12; $i++) {
+                $referenceno .= substr($gen, (rand() % (strlen($gen))), 1);
             }
 
-     }
-     public function showUpgrade(Request $request)
-     {
-           //Check if user is Disabled
-           if ($this->is_active() != 1) {
-           Auth::logout();
 
-           return view('error');
-           }
 
-           //Check if user is Pending, Rejected, or Verified KYC
-           $status = $this->is_verified();
+            $payer_name =  auth()->user()->first_name . ' ' . Auth::user()->last_name;
+            $payer_email = auth()->user()->email;
+            $payer_phone = auth()->user()->phone_number;
 
-           if ($status == 'Pending') {
-           return redirect()->route('verification.kyc');
+            $trx_id = Transaction::create([
+                'user_id' => $this->loginUserId,
+                'payer_name' =>  $payer_name,
+                'payer_email' => $payer_email,
+                'payer_phone' => $payer_phone,
+                'referenceId' => $referenceno,
+                'service_type' => 'BVN Enrollment Request',
+                'service_description' => 'Wallet debitted with a request fee of ' . number_format($ServiceFee, 2),
+                'amount' => $ServiceFee,
+                'gateway' => 'Wallet',
+                'status' => 'Approved',
+            ]);
 
-           } elseif ($status == 'Submitted') {
-           return view('kyc-status')->with(compact('status'));
+            $trx_id = $trx_id->id;
 
-           } elseif ($status == 'Rejected') {
-           return view('kyc-status')->with(compact('status'));
-           } else {
+            BVN_ENROLLMENT::create([
+                'user_id' => $this->loginUserId,
+                'tnx_id' => $trx_id,
+                'refno' => $referenceno,
+                'wallet_id' => $wallet_id,
+                'type' => $request->enrollment_type,
+                'username' => $request->username,
+                'fullname' => $request->fullname,
+                'phone_number' => $request->phone,
+                'email' => $request->email,
+                'state' => $request->state,
+                'lga' => $request->lga,
+                'address' => $request->address,
+                'account_name' => $request->account_name,
+                'account_number' => $request->account_number,
+                'bank_name' => $request->bank_name,
+                'bvn' => $request->bvn,
+            ]);
 
-           //Notification Data
-           $notifications = Notification::all()->where('user_id', $this->loginUserId)
-           ->sortByDesc('id')
-           ->where('status', 'unread')
-           ->take(3);
+            //Notifocation
+            //In App Notification
+            Notification::create([
+                'user_id' => $this->loginUserId,
+                'message_title' => 'BVN Enrollment Request',
+                'messages' => 'Wallet debitted with a Request fee of ' . number_format($ServiceFee, 2),
+            ]);
 
-           //Notification Count
-           $notifycount = 0;
-           $notifycount = Notification::all()
-           ->where('user_id', $this->loginUserId)
-           ->where('status', 'unread')
-           ->count();
+            $successMessage = 'BVN Enrollment Request Submitted';
+            return redirect()->back()->with('success', $successMessage);
+        }
+    }
+    public function showUpgrade(Request $request)
+    {
+        //Check if user is Disabled
+        if ($this->is_active() != 1) {
+            Auth::logout();
 
-           //Notification Data
-           $pending = DB::table('account_upgrades')
-           ->where('user_id', $this->loginUserId)
-           ->where('status', 'pending')
-           ->count();
+            return view('error');
+        }
 
-           $resolved = DB::table('account_upgrades')
-           ->where('user_id', $this->loginUserId)
-           ->where('status', 'resolved')
-           ->count();
 
-           $rejected = DB::table('account_upgrades')
-           ->where('user_id', $this->loginUserId)
-           ->where('status', 'rejected')
-           ->count();
+        $notifications = Notification::where('user_id', $this->loginUserId)
+            ->where('status', 'unread')
+            ->orderByDesc('id')
+            ->take(3)
+            ->get();
 
-           $total_request = DB::table('account_upgrades')
-           ->where('user_id', $this->loginUserId)
-           ->count();
+        $notifyCount = Notification::where('user_id', $this->loginUserId)
+            ->where('status', 'unread')
+            ->count();
 
-           $upgrades = DB::table('account_upgrades')->where('user_id', $this->loginUserId)
-           ->orderBy('id', 'desc')
-           ->paginate(5);
+        $notificationsEnabled = Auth::user()->notification;
 
-           $fee = 0;
-           $fee = Services::where('service_code', '118')->first();
-           $ServiceFee = $fee->amount;
 
-           return view('upgrade')
-           ->with(compact('notifications'))
-           ->with(compact('pending'))
-           ->with(compact('resolved'))
-           ->with(compact('rejected'))
-           ->with(compact('total_request'))
-           ->with(compact('upgrades'))
-           ->with(compact('ServiceFee'))
-           ->with(compact('notifycount'));
-           }
+        $pending = DB::table('account_upgrades')
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'pending')
+            ->count();
 
-     }
+        $resolved = DB::table('account_upgrades')
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'resolved')
+            ->count();
 
-     public function upgradeAccount(Request $request)
-     {
+        $rejected = DB::table('account_upgrades')
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'rejected')
+            ->count();
+
+        $total_request = DB::table('account_upgrades')
+            ->where('user_id', $this->loginUserId)
+            ->count();
+
+        $upgrades = DB::table('account_upgrades')->where('user_id', $this->loginUserId)
+            ->orderBy('id', 'desc')
+            ->paginate(5);
+
+        $fee = 0;
+        $fee = Services::where('service_code', '118')->first();
+        $ServiceFee = $fee->amount;
+
+        return view('upgrade', [
+            'notifications' => $notifications,
+            'pending' => $pending,
+            'resolved' => $resolved,
+            'rejected' => $rejected,
+            'total_request' => $total_request,
+            'upgrades' => $upgrades,
+            'ServiceFee' => $ServiceFee,
+            'notifyCount' => $notifyCount,
+            'notificationsEnabled' => $notificationsEnabled,
+        ]);
+    }
+
+    public function upgradeAccount(Request $request)
+    {
 
         $request->validate([
-              'documents' => 'required|file|mimes:pdf|max:10240', 
+            'documents' => 'required|file|mimes:pdf|max:10240',
         ]);
 
         // Retrieve the validated file
@@ -902,14 +821,14 @@ class AgencyController extends Controller
         // Move the file to the storage path
         $filePath = $file->storeAs('Documents', $fileName, 'public');
 
-        
-        $count = DB::table('account_upgrades')
-        ->where('user_id', $this->loginUserId)
-        ->where('status', 'pending')
-        ->count();
 
-        if($count == 10){
-        return redirect()->back()->with('error', 'Note: You have reached the maximum limit of '.$count.' Pending
+        $count = DB::table('account_upgrades')
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'pending')
+            ->count();
+
+        if ($count == 10) {
+            return redirect()->back()->with('error', 'Note: You have reached the maximum limit of ' . $count . ' Pending
         requests. Please wait until one of your requests is processed before submitting additional requests. Once a
         request is completed, you will be able to add more.');
         }
@@ -925,65 +844,66 @@ class AgencyController extends Controller
         $wallet_balance = $wallet->balance;
         $balance = 0;
 
-        if($wallet_balance < $ServiceFee) { return redirect()->back()->with('error', 'Sorry Wallet Not Sufficient for
+        if ($wallet_balance < $ServiceFee) {
+            return redirect()->back()->with('error', 'Sorry Wallet Not Sufficient for
             Transaction !');
-            }else
-            {
+        } else {
 
             $balance = $wallet->balance - $ServiceFee;
 
             $affected = Wallet::where('user_id', $this->loginUserId)
-            ->update(['balance' =>$balance]);
+                ->update(['balance' => $balance]);
 
             $referenceno = "";
-            srand((double) microtime() * 1000000);
+            srand((float) microtime() * 1000000);
             $gen = "123456123456789071234567890890";
             $gen .= "aBCdefghijklmn123opq45rs67tuv89wxyz"; // if you need alphabatic also
-            $ddesc ="";
-            for ($i = 0; $i < 12; $i++) { $referenceno .=substr($gen, (rand() % (strlen($gen))), 1);}
-                $payer_name=auth()->user()->first_name.' '. Auth::user()->last_name;
-                $payer_email = auth()->user()->email;
-                $payer_phone = auth()->user()->phone_number;
+            $ddesc = "";
+            for ($i = 0; $i < 12; $i++) {
+                $referenceno .= substr($gen, (rand() % (strlen($gen))), 1);
+            }
+            $payer_name = auth()->user()->first_name . ' ' . Auth::user()->last_name;
+            $payer_email = auth()->user()->email;
+            $payer_phone = auth()->user()->phone_number;
 
-                $trx_id = Transaction::create([
+            $trx_id = Transaction::create([
                 'user_id' => $this->loginUserId,
                 'payer_name' => $payer_name,
                 'payer_email' => $payer_email,
                 'payer_phone' => $payer_phone,
                 'referenceId' => $referenceno,
                 'service_type' => 'BVN Upgrade Request',
-                'service_description' => 'Wallet debitted with a request fee of '.number_format($ServiceFee, 2),
+                'service_description' => 'Wallet debitted with a request fee of ' . number_format($ServiceFee, 2),
                 'amount' => $ServiceFee,
                 'gateway' => 'Wallet',
                 'status' => 'Approved',
-                ]);
+            ]);
 
-                $trx_id = $trx_id->id;
+            $trx_id = $trx_id->id;
 
-                DB::table('account_upgrades')->insert([
+            DB::table('account_upgrades')->insert([
                 'user_id' => $this->loginUserId,
                 'tnx_id' => $trx_id,
                 'refno' => $referenceno,
                 'docs' => $filePath,
-                'created_at'=>Carbon::now(),
-                'updated_at'=>Carbon::now(),
-                ]);
+                'created_at' => Carbon::now(),
+                'updated_at' => Carbon::now(),
+            ]);
 
-                //Notifocation
-                //In App Notification
-                Notification::create([
+            //Notifocation
+            //In App Notification
+            Notification::create([
                 'user_id' => $this->loginUserId,
                 'message_title' => 'Bank Upgrade Request',
-                'messages' => 'Wallet debitted with a Request fee of '.number_format($ServiceFee, 2),
-                ]);
+                'messages' => 'Wallet debitted with a Request fee of ' . number_format($ServiceFee, 2),
+            ]);
 
-                $successMessage = 'Account Upgrade Request was successfully';
-                return redirect()->back()->with('success', $successMessage);
+            $successMessage = 'Account Upgrade Request was successfully';
+            return redirect()->back()->with('success', $successMessage);
+        }
+    }
 
-                }
-     }
-     
-     public function ninService(Request $request)
+    public function ninService(Request $request)
     {
 
         //Check if user is Disabled
@@ -993,85 +913,74 @@ class AgencyController extends Controller
             return view('error');
         }
 
-        //Check if user is Pending, Rejected, or Verified KYC
-        $status = $this->is_verified();
 
-        if ($status == 'Pending') {
-            return redirect()->route('verification.kyc');
 
-        } elseif ($status == 'Submitted') {
-            return view('kyc-status')->with(compact('status'));
+        $notifications = Notification::where('user_id', $this->loginUserId)
+            ->where('status', 'unread')
+            ->orderByDesc('id')
+            ->take(3)
+            ->get();
 
-        } elseif ($status == 'Rejected') {
-            return view('kyc-status')->with(compact('status'));
-        } else {
+        $notifyCount = Notification::where('user_id', $this->loginUserId)
+            ->where('status', 'unread')
+            ->count();
 
-            //Notification Data
-            $notifications = Notification::all()->where('user_id', $this->loginUserId)
-                ->sortByDesc('id')
-                ->where('status', 'unread')
-                ->take(3);
+        $notificationsEnabled = Auth::user()->notification;
 
-            //Notification Count
-            $notifycount = 0;
-            $notifycount = Notification::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'unread')
-                ->count();
+        //Notification Data
+        $pending = NIN_REQUEST::all()
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'pending')
+            ->count();
 
-            //Notification Data
-            $pending = NIN_REQUEST::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'pending')
-                ->count();
+        $resolved = NIN_REQUEST::all()
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'resolved')
+            ->count();
 
-            $resolved = NIN_REQUEST::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'resolved')
-                ->count();
+        $rejected = NIN_REQUEST::all()
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'rejected')
+            ->count();
 
-            $rejected = NIN_REQUEST::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'rejected')
-                ->count();
+        $total_request = NIN_REQUEST::all()
+            ->where('user_id', $this->loginUserId)
+            ->count();
 
-            $total_request = NIN_REQUEST::all()
-                ->where('user_id', $this->loginUserId)
-                ->count();
+        $nin = NIN_REQUEST::where('user_id', $this->loginUserId)
+            ->orderBy('id', 'desc')
+            ->paginate(5);
 
-            $nin = NIN_REQUEST::where('user_id', $this->loginUserId)
-                ->orderBy('id', 'desc')
-                ->paginate(5);
+        $services = Services::where('category', 'Agency')
+            ->where('type', 'NIN')
+            ->where('status', 'enabled')
+            ->get();
 
-            $services = Services::where('category', 'Agency')
-                ->where('type', 'NIN')
-                ->where('status', 'enabled')
-                ->get();
-
-            return view('nin-service')
-                ->with(compact('notifications'))
-                ->with(compact('services'))
-                ->with(compact('pending'))
-                ->with(compact('resolved'))
-                ->with(compact('rejected'))
-                ->with(compact('total_request'))
-                ->with(compact('nin'))
-                ->with(compact('notifycount'));
-        }
+        return view('nin-service', [
+            'notifications' => $notifications,
+            'services' => $services,
+            'pending' => $pending,
+            'resolved' => $resolved,
+            'rejected' => $rejected,
+            'total_request' => $total_request,
+            'nin' => $nin,
+            'notifyCount' => $notifyCount,
+            'notificationsEnabled' => $notificationsEnabled,
+        ]);
     }
 
-     public function ninServiceRequest(Request $request)
+    public function ninServiceRequest(Request $request)
     {
         $request->validate([
             'tracking_id' => [
-            'required',
-            'string',
-            function ($attribute, $value, $fail) {
-                if (!in_array(strlen($value), [11, 15])) {
-                    $fail('Tracking ID must be 15 digits and NIN 11 digits.');
-                }
-            },
-        ],
+                'required',
+                'string',
+                function ($attribute, $value, $fail) {
+                    if (!in_array(strlen($value), [11, 15])) {
+                        $fail('Tracking ID must be 15 digits and NIN 11 digits.');
+                    }
+                },
+            ],
             'service' => 'required|string',
         ]);
 
@@ -1087,7 +996,7 @@ class AgencyController extends Controller
             ->count();
 
         if ($count == 10) {
-            return redirect()->back()->with('error', 'Note: You have reached the maximum limit of '.$count.' Pending requests. Please wait until one of your requests is processed before submitting additional requests. Once a request is completed, you will be able to add more.');
+            return redirect()->back()->with('error', 'Note: You have reached the maximum limit of ' . $count . ' Pending requests. Please wait until one of your requests is processed before submitting additional requests. Once a request is completed, you will be able to add more.');
         }
 
         $tracking_id = $request->tracking_id;
@@ -1121,7 +1030,7 @@ class AgencyController extends Controller
                 $referenceno .= substr($gen, (rand() % (strlen($gen))), 1);
             }
 
-            $payer_name = auth()->user()->first_name.' '.Auth::user()->last_name;
+            $payer_name = auth()->user()->first_name . ' ' . Auth::user()->last_name;
             $payer_email = auth()->user()->email;
             $payer_phone = auth()->user()->phone_number;
 
@@ -1132,7 +1041,7 @@ class AgencyController extends Controller
                 'payer_phone' => $payer_phone,
                 'referenceId' => $referenceno,
                 'service_type' => 'NIN Service Request',
-                'service_description' => 'Wallet debitted with a Request fee of '.number_format($ServiceFee, 2),
+                'service_description' => 'Wallet debitted with a Request fee of ' . number_format($ServiceFee, 2),
                 'amount' => $ServiceFee,
                 'gateway' => 'Wallet',
                 'status' => 'Approved',
@@ -1145,7 +1054,7 @@ class AgencyController extends Controller
                 'tnx_id' => $trx_id,
                 'refno' => $referenceno,
                 'trackingId' => $tracking_id,
-                'service_type'=> $serviceType,
+                'service_type' => $serviceType,
             ]);
 
             //Notifocation
@@ -1153,92 +1062,75 @@ class AgencyController extends Controller
             Notification::create([
                 'user_id' => $this->loginUserId,
                 'message_title' => 'NIN Service Request',
-                'messages' => 'Wallet debitted with a Request fee of '.number_format($ServiceFee, 2),
+                'messages' => 'Wallet debitted with a Request fee of ' . number_format($ServiceFee, 2),
             ]);
 
             $successMessage = 'NIN Service Request was successfully';
 
             return redirect()->back()->with('success', $successMessage);
-
         }
     }
-        public function vninToNibss(Request $request)
+    public function vninToNibss(Request $request)
     {
 
-        //Check if user is Disabled
         if ($this->is_active() != 1) {
             Auth::logout();
 
             return view('error');
         }
 
-        //Check if user is Pending, Rejected, or Verified KYC
-        $status = $this->is_verified();
+        $notifications = Notification::where('user_id', $this->loginUserId)
+            ->where('status', 'unread')
+            ->orderByDesc('id')
+            ->take(3)
+            ->get();
 
-        if ($status == 'Pending') {
-            return redirect()->route('verification.kyc');
+        $notifyCount = Notification::where('user_id', $this->loginUserId)
+            ->where('status', 'unread')
+            ->count();
 
-        } elseif ($status == 'Submitted') {
-            return view('kyc-status')->with(compact('status'));
+        $notificationsEnabled = Auth::user()->notification;
 
-        } elseif ($status == 'Rejected') {
-            return view('kyc-status')->with(compact('status'));
-        } else {
+        $pending = VNIN_TO_NIBSS::all()
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'pending')
+            ->count();
 
-            //Notification Data
-            $notifications = Notification::all()->where('user_id', $this->loginUserId)
-                ->sortByDesc('id')
-                ->where('status', 'unread')
-                ->take(3);
+        $resolved = VNIN_TO_NIBSS::all()
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'resolved')
+            ->count();
 
-            //Notification Count
-            $notifycount = 0;
-            $notifycount = Notification::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'unread')
-                ->count();
+        $rejected = VNIN_TO_NIBSS::all()
+            ->where('user_id', $this->loginUserId)
+            ->where('status', 'rejected')
+            ->count();
 
-            //Notification Data
-            $pending = VNIN_TO_NIBSS::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'pending')
-                ->count();
+        $total_request = VNIN_TO_NIBSS::all()
+            ->where('user_id', $this->loginUserId)
+            ->count();
 
-            $resolved = VNIN_TO_NIBSS::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'resolved')
-                ->count();
+        $vnin = VNIN_TO_NIBSS::where('user_id', $this->loginUserId)
+            ->orderBy('id', 'desc')
+            ->paginate(5);
 
-            $rejected = VNIN_TO_NIBSS::all()
-                ->where('user_id', $this->loginUserId)
-                ->where('status', 'rejected')
-                ->count();
+        $fee = 0;
+        $fee = Services::where('service_code', '148')
+            ->where('status', 'enabled')
+            ->first();
+        $ServiceFee = $fee->amount;
 
-            $total_request = VNIN_TO_NIBSS::all()
-                ->where('user_id', $this->loginUserId)
-                ->count();
-
-            $vnin = VNIN_TO_NIBSS::where('user_id', $this->loginUserId)
-                ->orderBy('id', 'desc')
-                ->paginate(5);
-
-            $fee = 0;
-            $fee = Services::
-                             where('service_code', '148')
-                            ->where('status','enabled')
-                            ->first();
-            $ServiceFee = $fee->amount;
-
-            return view('vnin-to-nibss')
-                ->with(compact('notifications'))
-                ->with(compact('ServiceFee'))
-                ->with(compact('pending'))
-                ->with(compact('resolved'))
-                ->with(compact('rejected'))
-                ->with(compact('total_request'))
-                ->with(compact('vnin'))
-                ->with(compact('notifycount'));
-        }
+        return view('vnin-to-nibss', [
+            'notifications' => $notifications,
+            'ServiceFee' => $ServiceFee,
+            'pending' => $pending,
+            'resolved' => $resolved,
+            'rejected' => $rejected,
+            'total_request' => $total_request,
+            'vnin' => $vnin,
+            'notifyCount' => $notifyCount,
+            'notificationsEnabled' => $notificationsEnabled,
+        ]);
     }
 
     public function vninToNibssRequest(Request $request)
@@ -1262,7 +1154,7 @@ class AgencyController extends Controller
             ->count();
 
         if ($count == 10) {
-            return redirect()->back()->with('error', 'Note: You have reached the maximum limit of '.$count.' Pending requests. Please wait until one of your requests is processed before submitting additional requests. Once a request is completed, you will be able to add more.');
+            return redirect()->back()->with('error', 'Note: You have reached the maximum limit of ' . $count . ' Pending requests. Please wait until one of your requests is processed before submitting additional requests. Once a request is completed, you will be able to add more.');
         }
 
         // Services Fee
@@ -1293,7 +1185,7 @@ class AgencyController extends Controller
                 $referenceno .= substr($gen, (rand() % (strlen($gen))), 1);
             }
 
-            $payer_name = auth()->user()->first_name.' '.Auth::user()->last_name;
+            $payer_name = auth()->user()->first_name . ' ' . Auth::user()->last_name;
             $payer_email = auth()->user()->email;
             $payer_phone = auth()->user()->phone_number;
 
@@ -1304,7 +1196,7 @@ class AgencyController extends Controller
                 'payer_phone' => $payer_phone,
                 'referenceId' => $referenceno,
                 'service_type' => 'VNIN Service Request',
-                'service_description' => 'Wallet debitted with a Request fee of '.number_format($ServiceFee, 2),
+                'service_description' => 'Wallet debitted with a Request fee of ' . number_format($ServiceFee, 2),
                 'amount' => $ServiceFee,
                 'gateway' => 'Wallet',
                 'status' => 'Approved',
@@ -1317,10 +1209,10 @@ class AgencyController extends Controller
                 'tnx_id' => $trx_id,
                 'refno' => $referenceno,
                 'requestId' => $request->request_id,
-                'nin_number'=> $request->nin_number,
-                'bvn_number'=> $request->bvn_number,
+                'nin_number' => $request->nin_number,
+                'bvn_number' => $request->bvn_number,
                 'created_at' => Carbon::now(),
-                'updated_at'=> Carbon::now()
+                'updated_at' => Carbon::now()
             ]);
 
             //Notifocation
@@ -1328,14 +1220,12 @@ class AgencyController extends Controller
             Notification::create([
                 'user_id' => $this->loginUserId,
                 'message_title' => 'VNIN Service Request',
-                'messages' => 'Wallet debitted with a Request fee of '.number_format($ServiceFee, 2),
+                'messages' => 'Wallet debitted with a Request fee of ' . number_format($ServiceFee, 2),
             ]);
 
             $successMessage = 'VNIN Service Request was successfully';
 
             return redirect()->back()->with('success', $successMessage);
-
         }
     }
-
 }

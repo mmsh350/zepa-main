@@ -1,20 +1,43 @@
 @extends('layouts.dashboard')
 @section('title', 'NIN Verification')
+@push('page-css')
+    <style>
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            z-index: 9999;
+        }
+
+        #overlay button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #ff5252;
+            border: none;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+    </style>
+@endpush
 @section('content')
 
-    <!------App Header ----->
     @include('components.app-header')
-    <!-- Start::app-sidebar -->
-    @php
-        $title = 'nin-track';
-        $menu = 'Identity';
-    @endphp
+
     @include('components.app-sidebar')
-    <!-- Start::app-content -->
+
     <div class="main-content app-content">
         <div class="container-fluid">
-            <!-- End::page-header -->
-            <!-- Start::row-1 -->
+
             <div class="row mt-4">
                 <div class="col-xxl-12 col-xl-12">
                     <div class="row">
@@ -127,9 +150,42 @@
             </div>
         </div>
     </div>
-
+    <div id="overlay">
+        <div class="text-center">
+            <p>To use this page, pop-ups must be enabled. Please allow pop-ups for this site.</p>
+            <button onclick="enablePopups()">Allow Pop-ups</button>
+        </div>
+    </div>
+    <div id="responsive-overlay"></div>
 @endsection
-
-@section('page-js')
+@push('page-js')
     <script src="{{ asset('assets/js/nin-track.js') }}"></script>
-@endsection
+    <script>
+        function enablePopups() {
+            const testPopup = window.open('', '_blank', 'width=1,height=1');
+            if (testPopup === null || typeof testPopup === 'undefined') {
+                alert("Pop-ups are still blocked. Please allow pop-ups in your browser settings.");
+            } else {
+                // Pop-ups are allowed
+                testPopup.close();
+                localStorage.setItem('popupsAllowed', 'true');
+                document.getElementById('overlay').style.display = 'none';
+                window.location.reload();
+            }
+        }
+        window.onload = function() {
+            if (localStorage.getItem('popupsAllowed') === 'true') {
+                document.getElementById('overlay').style.display = 'none';
+                return;
+            }
+            const testPopup = window.open('', '_blank', 'width=1,height=1');
+            if (testPopup === null || typeof testPopup === 'undefined') {
+                document.getElementById('overlay').style.display = 'flex';
+            } else {
+                testPopup.close();
+                localStorage.setItem('popupsAllowed', 'true');
+                document.getElementById('overlay').style.display = 'none';
+            }
+        };
+    </script>
+@endpush

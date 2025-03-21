@@ -13,8 +13,8 @@ use Illuminate\Http\Request;
 
 class ServicesController extends Controller
 {
-   use ActiveUsers;
-    use KycVerify;
+    use ActiveUsers;
+
 
     //Show Dashboard
     public function show(Request $request)
@@ -29,38 +29,25 @@ class ServicesController extends Controller
             return view('error');
         }
 
-        //Check if user is Pending, Rejected, or Verified KYC
-        $status = $this->is_verified();
+        $notifications = Notification::where('user_id', $loginUserId)
+            ->where('status', 'unread')
+            ->orderByDesc('id')
+            ->take(3)
+            ->get();
 
-        if ($status == 'Pending') {
-            return redirect()->route('verification.kyc');
+        $notifyCount = Notification::where('user_id', $loginUserId)
+            ->where('status', 'unread')
+            ->count();
 
-        } elseif ($status == 'Submitted') {
-            return view('kyc-status')->with(compact('status'));
+        $notificationsEnabled = Auth::user()->notification;
 
-        } elseif ($status == 'Rejected') {
-            return view('kyc-status')->with(compact('status'));
-        } else {
+        $type = $request->name;
 
-            //Notification Data
-            $notifications = Notification::all()->where('user_id', $loginUserId)
-                ->sortByDesc('id')
-                ->where('status', 'unread')
-                ->take(3);
-
-            //Notification Count
-            $notifycount = 0;
-            $notifycount = Notification::all()
-                ->where('user_id', $loginUserId)
-                ->where('status', 'unread')
-                ->count();
-
-            $type = $request->name;
-
-            return view('more-services')
-                ->with(compact('type'))
-                ->with(compact('notifications'))
-                ->with(compact('notifycount'));
-        }
+        return view('more-services', [
+            'type' => $type,
+            'notifications' => $notifications,
+            'notifyCount' => $notifyCount,
+            'notificationsEnabled' => $notificationsEnabled,
+        ]);
     }
 }
