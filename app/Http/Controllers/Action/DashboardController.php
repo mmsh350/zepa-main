@@ -191,8 +191,8 @@ class DashboardController extends Controller
                     $updateData['profile_pic'] = $data['photo'];
                 }
 
-                User::where('id', $this->loginUserId)->update($updateData);
-                $this->createAccounts($this->loginUserId);
+                 User::where('id', $this->loginUserId)->update($updateData);
+                 $this->createAccounts($this->loginUserId);
                 return redirect()->back()->with('success', 'Your identity verification is complete, and youre all set to explore our services. Thank you for verifying your account!');
             } else if ($data['respCode'] == 99120020 || $data['respCode'] == 99120024) {
 

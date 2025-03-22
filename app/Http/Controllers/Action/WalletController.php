@@ -68,6 +68,10 @@ class WalletController extends Controller
         //get all referral bonus 
         $bonus_balance = BonusHistory::where('user_id', $this->loginUserId)->sum('amount');
 
+        $old_bonus = Bonus::where('user_id',$this->loginUserId)->first();
+
+        $old_bonus = $old_bonus->balance; 
+
         $unclaimed_balance = $wallet->bonus ?? 0;
 
         $claimed_balance = $bonus_balance -  $unclaimed_balance;
@@ -109,6 +113,7 @@ class WalletController extends Controller
             'notificationsEnabled' =>  $notificationsEnabled,
             'transaction_count' => $transaction_count,
             'users' =>  $users,
+            'old_bonus'=> $old_bonus,
         ]);
     }
 

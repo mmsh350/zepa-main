@@ -6,7 +6,7 @@
 
     <div class="container-lg">
         <div class="row justify-content-center align-items-center authentication authentication-basic h-100">
-            <div class="col-xxl-4 col-xl-5 col-lg-5 col-md-6 col-sm-8 col-12">
+            <div class="col-xxl-4 col-xl-5 col-lg-5 col-md-6 col-sm-8 col-12 mt-2">
                 <div class="card custom-card">
                     <div class="card-body p-4">
 

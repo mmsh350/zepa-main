@@ -65,7 +65,7 @@ class VirtualAccountRepository
                 // Execute request
                 $response = curl_exec($ch);
 
-
+                Log::info($response);         
                 // Check for cURL errors
                 if (curl_errno($ch)) {
                     throw new \Exception('cURL Error: ' . curl_error($ch));
