@@ -27,7 +27,7 @@ $(document).ready(function () {
                         $("#register").html("Successful ...");
                         setTimeout(function () {
                             $("form").trigger("reset");
-                            window.location.reload();
+                           location.href = dataResult.redirect_url;
                         }, 2000);
                     },
                     error: function (data) {

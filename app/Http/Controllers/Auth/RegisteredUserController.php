@@ -84,7 +84,7 @@ class RegisteredUserController extends Controller
 
             event(new Registered($user));
             Auth::login($user);
-            return response()->json(['status' => 200]);
+            return response()->json(['status' => 200, 'redirect_url' => url('dashboard')]);
         } catch (\Exception $e) {
 
             DB::rollBack();
