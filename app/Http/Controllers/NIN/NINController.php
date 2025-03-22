@@ -101,37 +101,7 @@ class NINController extends Controller
         $premium_nin_fee = $services[$serviceCodes['premium']] ?? null;
         $trackingServiceFee = $services[$serviceCodes['tracking']] ?? null;
 
-        // if ($request->route()->named('nin-phone')) {
-
-        //     return view('nin-phone')
-        //         ->with(compact('notifications'))
-        //         ->with(compact('ServiceFee'))
-        //         ->with(compact('regular_nin_fee'))
-        //         ->with(compact('standard_nin_fee'))
-        //         ->with(compact('premium_nin_fee'))
-        //         ->with(compact('notifyCount'))
-        //         ->with(compact('notificationsEnabled'));
-        // } elseif ($request->route()->named('nin-track')) {
-
-        //     return view('nin-track')
-        //         ->with(compact('notifications'))
-        //         ->with(compact('ServiceFee'))
-        //         ->with(compact('regular_nin_fee'))
-        //         ->with(compact('trackingServiceFee'))
-        //         ->with(compact('notifyCount'))
-        //         ->with(compact('notificationsEnabled'));
-        // } else {
-
-        //     return view('nin-verify')
-        //         ->with(compact('notifications'))
-        //         ->with(compact('ServiceFee'))
-        //         ->with(compact('regular_nin_fee'))
-        //         ->with(compact('standard_nin_fee'))
-        //         ->with(compact('premium_nin_fee'))
-        //         ->with(compact('notifyCount'))
-        //         ->with(compact('notificationsEnabled'));
-        // }
-
+        
         $view = match (true) {
             $request->route()->named('nin-phone') => 'nin-phone',
             $request->route()->named('nin-track') => 'nin-track',

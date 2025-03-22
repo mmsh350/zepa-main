@@ -94,7 +94,7 @@
                                                             <div>
                                                                 <p class="text-muted mb-0">Claimed Bonus</p>
                                                                 <h4 class="fw-semibold mt-1">
-                                                                    {{ $claimed_balance }} - P{{ $claimed_balance }}</h4>
+                                                                    {{ $claimed_balance }}</h4>
                                                             </div>
                                                             <div id="crm-total-deals"></div>
                                                         </div>
