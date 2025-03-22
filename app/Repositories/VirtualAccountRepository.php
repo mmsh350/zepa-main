@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 class VirtualAccountRepository
 {
 
-    public function createVirtualAccount($loginUserId)
+    public function createVirtualAccount($loginUserId,$bvn_no)
     {
 
         $exist = User::where('id', $loginUserId)
@@ -21,7 +21,7 @@ class VirtualAccountRepository
         if ($exist) {
 
             $customer_name = trim(auth()->user()->first_name . ' ' . auth()->user()->middle_name . ' ' . auth()->user()->last_name);
-
+            
             try {
 
                 $requestTime = (int) (microtime(true) * 1000);
@@ -31,7 +31,7 @@ class VirtualAccountRepository
                 $data = [
                     'requestTime' => $requestTime,
                     'identityType' => 'personal',
-                    'licenseNumber' =>  auth()->user()->idNumber,
+                    'licenseNumber' =>  $bvn_no,
                     'virtualAccountName' => $customer_name,
                     'version' => env('VERSION'),
                     'customerName' => $customer_name,
@@ -44,15 +44,15 @@ class VirtualAccountRepository
 
                 $signature = signatureHelper::generate_signature($data, config('keys.private'));
 
-                $url = env('BASE_URL3') . 'api/v2/virtual/account/label/create';
-                $token = env('BEARER_TOKEN');
-                $headers = [
-                    'Accept: application/json, text/plain, */*',
-                    'CountryCode: NG',
-                    "Authorization: Bearer $token",
-                    "Signature: $signature",
-                    'Content-Type: application/json',
-                ];
+                // $url = env('BASE_URL3') . 'api/v2/virtual/account/label/create';
+                // $token = env('BEARER_TOKEN');
+                // $headers = [
+                //     'Accept: application/json, text/plain, */*',
+                //     'CountryCode: NG',
+                //     "Authorization: Bearer $token",
+                //     "Signature: $signature",
+                //     'Content-Type: application/json',
+                // ];
 
                 // Initialize cURL
                 $ch = curl_init();

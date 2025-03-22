@@ -96,14 +96,14 @@ class DashboardController extends Controller
         ]);
     }
 
-    private function createAccounts($userId)
+    private function createAccounts($userId, $bvn_no=NULL)
     {
 
         $repObj = new WalletRepository;
         $repObj->createWalletAccount($userId);
 
         $repObj2 = new VirtualAccountRepository;
-        $repObj2->createVirtualAccount($userId);
+        $repObj2->createVirtualAccount($userId,$bvn_no);
     }
 
     public function verifyUser(Request $request)
@@ -193,7 +193,7 @@ class DashboardController extends Controller
                 }
 
                  User::where('id', $this->loginUserId)->update($updateData);
-                 $this->createAccounts($this->loginUserId);
+                 $this->createAccounts($this->loginUserId,$bvn_no);
                 return redirect()->back()->with('success', 'Your identity verification is complete, and youre all set to explore our services. Thank you for verifying your account!');
             } else if ($data['respCode'] == 99120020 || $data['respCode'] == 99120024) {
 
