@@ -180,7 +180,8 @@ class DashboardController extends Controller
                     'last_name'    => ucwords(strtolower($data['lastName'])),
                     'dob'          => $data['birthday'],
                     'gender'       => $data['gender'],
-                    'kyc_status'       => 'Verified',
+                    'kyc_status'   => 'Verified',
+                    'idNumber'=> $bvn_no,
                 ];
 
                 if (!empty($data['phoneNumber'])) {

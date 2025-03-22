@@ -40,17 +40,19 @@ class VirtualAccountRepository
                     'nonceStr' => $noncestr,
                 ];
 
-                $signature = signatureHelper::generate_signature($data, config('keys.private'));
+                 Log::info($data); 
 
-                $url = env('BASE_URL3') . 'api/v2/virtual/account/label/create';
-                $token = env('BEARER_TOKEN');
-                $headers = [
-                    'Accept: application/json, text/plain, */*',
-                    'CountryCode: NG',
-                    "Authorization: Bearer $token",
-                    "Signature: $signature",
-                    'Content-Type: application/json',
-                ];
+                // $signature = signatureHelper::generate_signature($data, config('keys.private'));
+
+                // $url = env('BASE_URL3') . 'api/v2/virtual/account/label/create';
+                // $token = env('BEARER_TOKEN');
+                // $headers = [
+                //     'Accept: application/json, text/plain, */*',
+                //     'CountryCode: NG',
+                //     "Authorization: Bearer $token",
+                //     "Signature: $signature",
+                //     'Content-Type: application/json',
+                // ];
 
                 // Initialize cURL
                 $ch = curl_init();
