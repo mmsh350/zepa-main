@@ -1,4 +1,4 @@
 <?php
-symlink('zepa-secured/storage/app/public', 'storage');
+symlink('storage/app/public', 'storage');
 echo 'Symlink created!';
 ?>
