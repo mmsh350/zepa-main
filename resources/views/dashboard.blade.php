@@ -460,23 +460,30 @@
                         {{ session('error') }}
                     </div>
                 @endif
-                <form id="verify" name="verifyForm" method="POST" action="{{ route('verify-user') }}">
-                    @csrf
-                    <div class="d-flex justify-content-center align-items-center ">
-                        <div class="col-md-6 col-lg-6">
-                            <div class="mb-3">
-                                <p class="mb-2 text-muted text-center">Enter your BVN No.</p>
-                                <input type="text" id="bvn" name="bvn" class="form-control text-center"
-                                    maxlength="11" required />
-                            </div>
-                            <div class="text-center mb-3">
-                                <button type="submit" id="submit" class="btn btn-primary">
-                                    <i class="lar la-check-circle"></i> Verify Now
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </form>
+               <div class="d-flex justify-content-center align-items-center">
+    <div class="col-md-6 col-lg-6">
+        <form id="verify" name="verifyForm" method="POST" action="{{ route('verify-user') }}">
+            @csrf
+            <div class="mb-3">
+                <p class="mb-2 text-muted text-center">Enter your BVN No.</p>
+                <input type="text" id="bvn" name="bvn" class="form-control text-center" maxlength="11" required />
+            </div>
+            <div class="text-center mb-3 d-flex justify-content-center gap-2">
+                <button type="submit" id="submit" class="btn btn-primary">
+                    <i class="lar la-check-circle"></i> Verify Now
+                </button>
+            </div>
+        </form>
+
+        <form method="POST" action="{{ route('logout') }}" class="text-center mb-3">
+            @csrf
+            <button type="submit" class="btn btn-danger">
+                <i class="las la-sign-out-alt"></i> Logout
+            </button>
+        </form>
+    </div>
+</div>
+
 
             </div>
         </div>

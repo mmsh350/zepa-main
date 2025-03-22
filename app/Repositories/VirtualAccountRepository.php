@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Log;
 class VirtualAccountRepository
 {
 
-    public function createVirtualAccount($loginUserId,$bvn_no)
+    public function createVirtualAccount($loginUserId)
     {
 
         $exist = User::where('id', $loginUserId)
@@ -20,7 +20,9 @@ class VirtualAccountRepository
             ->exists();
         if ($exist) {
 
-            $customer_name = trim(auth()->user()->first_name . ' ' . auth()->user()->middle_name . ' ' . auth()->user()->last_name);
+            $userDetails = User::where('id', $loginUserId)->first();
+
+            $customer_name = trim($userDetails->first_name . ' ' . $userDetails->middle_name . ' ' . $userDetails->last_name);
             
             try {
 
@@ -31,11 +33,11 @@ class VirtualAccountRepository
                 $data = [
                     'requestTime' => $requestTime,
                     'identityType' => 'personal',
-                    'licenseNumber' =>  $bvn_no,
+                    'licenseNumber' =>  $userDetails->idNumber,
                     'virtualAccountName' => $customer_name,
                     'version' => env('VERSION'),
                     'customerName' => $customer_name,
-                    'email' => auth()->user()->email,
+                    'email' => $userDetails->email,
                     'accountReference' => $accountReference,
                     'nonceStr' => $noncestr,
                 ];
