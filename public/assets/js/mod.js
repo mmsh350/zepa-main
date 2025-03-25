@@ -64,26 +64,27 @@ $(document).ready(function () {
                 <option value="Female">Female</option>
             </select>`;
                 break;
+            // case 5:
+            //     labelText = "New Name (e.g LastName MiddleName FirstName)";
+            //     newInput = $(
+            //         '<input type="text" id="data_to_modify" name="data_to_modify" class="form-control text-center" required/>'
+            //     );
+            //     break;
             case 5:
-                labelText = "New Name (e.g LastName MiddleName FirstName)";
-                newInput = $(
-                    '<input type="text" id="data_to_modify" name="data_to_modify" class="form-control text-center" required/>'
-                );
-                break;
-            case 6:
                 labelText = "BVN Revalidation";
                 value = "BVN No: " + $("#bvn_number").val();
                 newInput = $(
                     '<input type="text" id="data_to_modify" name="data_to_modify" class="form-control text-center" required/>'
                 );
                 break;
-            case 7:
+            case 6:
                 labelText = "BVN Whitelisting:";
                 value = "BVN No: " + $("#bvn_number").val();
                 newInput = $(
                     '<input type="text" id="data_to_modify" name="data_to_modify" class="form-control text-center" required/>'
                 );
                 break;
+            case 7:
             case 8:
             case 9:
             case 10:
@@ -92,19 +93,24 @@ $(document).ready(function () {
             case 13:
             case 14:
             case 15:
-            case 16:
             case 17:
+            case 18:
+            case 19:
+            case 20:
+            case 21:
                 labelText = "Enter New Details";
                 newInput = $(
                     '<textarea id="data_to_modify" name="data_to_modify" class="form-control text-center" required></textarea>'
                 );
                 break;
-             case 18:
-                  labelText = "New Email Address :";
+             case 16:
+                 labelText = "New Email Address :";
                 newInput = $(
                     '<input type="email" id="data_to_modify" name="data_to_modify" class="form-control text-center" required/>'
                 );
                 break;
+            
+                 
             default:
                 labelText = "Input:";
                 newInput = $(
