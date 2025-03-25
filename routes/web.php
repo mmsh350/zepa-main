@@ -174,7 +174,8 @@ Route::middleware('auth', 'verified', 'is_kyced')->group(function () {
     //End PDF Downloads Routes ------------------------------------------------------------------------------------------
 
 
-    Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::post('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::put('/password-update', [ProfileController::class, 'passwordUpdate'])->name('profile.password');
     Route::post('/pin-verify', [ProfileController::class, 'verifyPin'])->name('pin.verify');
     Route::post('/pin-update', [ProfileController::class, 'updatePin'])->name('pin.update');
     Route::post('/notification', [ProfileController::class, 'update'])->name('notification.update');

@@ -63,6 +63,19 @@ class ProfileController extends Controller
      */
     public function update(Request $request)
     {
+        $request->validate([
+            'phone_number' => 'required|string|min:11',
+            'gender' => 'required|string',
+        ]);
+
+        $user = Auth::user();
+        $user->update($request->only('phone_number', 'gender'));
+
+        return redirect()->back()->with('message', 'Profile updated successfully.');
+ 
+    }
+  public function passwordUpdate(Request $request)
+    {
         // Validate the request
         $request->validate([
             'current_password' => 'required|string',
@@ -92,7 +105,6 @@ class ProfileController extends Controller
             return redirect()->back()->with('error', 'Failed to update password.');
         }
     }
-
     /**
      * Delete the user's account.
      */

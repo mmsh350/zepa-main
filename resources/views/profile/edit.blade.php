@@ -12,15 +12,11 @@
 
                 <!-- Start::Password Update Section -->
                 <div class="row mt-4">
-                    <div class="col-xxl-12  col-md-6">
-                        <div class="card custom-card mb-4">
-                            <div class="card-header">
-                                <h5 class="card-title">Update Password</h5>
-                            </div>
-                            <div class="card-body">
-                                @if (session('status'))
+
+                    <div class="col-xxl-12  col-md-12">
+                         @if (session('message'))
                                     <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                        Password Update Successful.
+                                     Profile Update successful
                                     </div>
                                 @endif
 
@@ -39,8 +35,65 @@
                                         </ul>
                                     </div>
                                 @endif
+                        <div class="card custom-card mb-4">
+                            
+                            <div class="card-header">
+                                <h5 class="card-title">Profile</h5>
+                            </div>
+                            <div class="card-body">
+                                
+                               <div class="text-center mb-3">
+               @if (Auth::user()->profile_pic != '')
+                                 <img alt="img" width="100" height="100" class="rounded-circle"
+                                     src="{{ 'data:image/;base64,' . Auth::user()->profile_pic }}">
+                             @else
+                                 <img alt="img" width="50" height="50" class="rounded-circle"
+                                     src="{{ asset('assets/images/zepa-logo.jpg') }}" alt="">
+                             @endif
+                <h4 class="mt-2">{{ Auth::user()->first_name }} {{ Auth::user()->last_name }}</h4>
+                 <span class="badge bg-primary rounded text-white px-3 py-2">{{ ucfirst(Auth::user()->role) }}</span>
+            </div>
 
-                                <form method="post" action="{{ route('profile.update') }}">
+            <form method="POST" action="{{ route('profile.update') }}">
+                @csrf
+
+                <div class="mb-3">
+                    <label>Email</label>
+                    <input type="email" class="form-control" value="{{ Auth::user()->email }}" disabled>
+                </div>
+
+                <div class="mb-3">
+                    <label>Phone Number</label>
+                    <input type="text" name="phone_number" class="form-control" value="{{ Auth::user()->phone_number }}">
+                </div>
+
+                <div class="mb-3">
+                    <label>Gender</label>
+                    <select name="gender" class="form-control">
+                        <option value="Male" {{ Auth::user()->gender === 'Male' ? 'selected' : '' }}>Male</option>
+                        <option value="Female" {{ Auth::user()->gender === 'Female' ? 'selected' : '' }}>Female</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Update Profile</button>
+            </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-xxl-12  col-md-6">
+                        <div class="card custom-card mb-4">
+                            <div class="card-header">
+                                <h5 class="card-title">Update Password</h5>
+                            </div>
+                            <div class="card-body">
+                                @if (session('status'))
+                                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                        Password Update Successful.
+                                    </div>
+                                @endif
+
+                                <form method="post" action="{{ route('profile.password') }}">
                                     @csrf
                                     @method('put')
                                     <div class="mb-3">
@@ -209,7 +262,7 @@
                                         </label>
                                     </div>
                                     <button type="submit" id="notify" class="btn btn-primary mt-3">Save
-                                        Settings</button>
+                                        Setting</button>
                                 </form>
                             </div>
                         </div>
