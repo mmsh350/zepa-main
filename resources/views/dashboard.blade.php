@@ -9,9 +9,9 @@
         <!-- Start::app-content -->
         <div class="main-content app-content">
             <div class="container-fluid">
-                @include('components.news')
-
-                <!-- Start::page-header -->
+                {{-- @include('components.news') --}}
+               
+                <!-- Start::page-header --> 
                 <div class="d-md-flex d-block align-items-center justify-content-between my-2 page-header-breadcrumb">
                     <div>
                         <p class="fw-semibold fs-18 mb-0">Welcome back, {{ Auth::user()->first_name }} !</p>
@@ -33,6 +33,8 @@
                                 class="bi bi-x"></i></button>
                     </div>
                 @endif
+
+                  <a href="{{ route('profile.edit')}}"><img src="{{ asset('assets/images/advert1.jpg') }}" class="mt-1 mb-3 img-fluid"></a> 
                 @if ($status == 'Pending')
                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
                         We're excited to have you on board! However, we need to verify your identity before activating your
