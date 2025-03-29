@@ -33,8 +33,6 @@
                                 class="bi bi-x"></i></button>
                     </div>
                 @endif
-
-                  <a href="{{ route('profile.edit')}}"><img src="{{ asset('assets/images/advert1.jpg') }}" class="mt-1 mb-3 img-fluid"></a> 
                 @if ($status == 'Pending')
                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
                         We're excited to have you on board! However, we need to verify your identity before activating your
@@ -431,7 +429,9 @@
                         </div>
                     </div>
                 </div>
+                <a href="{{ route('profile.edit')}}"><img src="{{ asset('assets/images/advert1.jpg') }}" class="mt-1 mb-3 img-fluid"></a> 
             </div>
+            
         </div>
     </div>
     <div class="modal fade" id="kycModal" tabindex="-1" aria-labelledby="kycModal" data-bs-keyboard="true"
