@@ -641,6 +641,7 @@ class UtilityController extends Controller
         $bundles = DB::table('data_variations')
             ->select(['name', 'variation_code'])
             ->where('service_id', $request->id)
+            ->where('status', 'enabled')
             ->get();
 
         return response()->json($bundles);
