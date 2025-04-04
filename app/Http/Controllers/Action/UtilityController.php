@@ -704,6 +704,7 @@ class UtilityController extends Controller
 
         $types = DB::table('sme_datas')
             ->select(['data_id', 'size', 'plan_type', 'amount', 'validity'])
+            ->where('status', 'enabled')
             ->where('network', $requestType)
             ->where('plan_type', $request->type)
             ->get();
