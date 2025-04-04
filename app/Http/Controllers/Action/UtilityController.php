@@ -206,9 +206,12 @@ class UtilityController extends Controller
 
         $notificationsEnabled = Auth::user()->notification;
 
-        //Get the serve name
-        $servicename = DB::table('data_variations')->distinct()->limit(6)
-            ->get(['service_id', 'service_name']);
+            $servicename = DB::table('data_variations')
+            ->select(['service_id', 'service_name'])
+            ->where('status', 'enabled')
+            ->distinct()
+            ->limit(6)
+            ->get();
 
         //Price List
         $priceList1 = DB::table('data_variations')->where('service_id', 'mtn-data')->paginate(10, ['*'], 'table1_page');
