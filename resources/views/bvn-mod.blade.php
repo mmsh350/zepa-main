@@ -153,7 +153,6 @@
                                                                 <option>Heritage Bank</option>
                                                                 <option>Keystone Bank</option>
                                                                 <option>Taj Bank</option>
-                                                                <option>NIMC</option>
                                                                 <option>Wema Bank</option>
                                                             </select>
                                                         </div>
