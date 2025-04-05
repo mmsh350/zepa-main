@@ -18,5 +18,7 @@ class NIN_REQUEST extends Model
         'trackingId',
         'nin_number',
         'service_type',
+        'description',
+        'uploads',
     ];
 }

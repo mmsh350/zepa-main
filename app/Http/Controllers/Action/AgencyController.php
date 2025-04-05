@@ -18,6 +18,8 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
+
 
 class AgencyController extends Controller
 {
@@ -971,24 +973,46 @@ class AgencyController extends Controller
 
     public function ninServiceRequest(Request $request)
     {
-        $request->validate([
-            'tracking_id' => [
-                'required',
-                'string',
-                function ($attribute, $value, $fail) {
-                    if (!in_array(strlen($value), [11, 15])) {
-                        $fail('Tracking ID must be 15 digits and NIN 11 digits.');
-                    }
-                },
-            ],
-            'service' => 'required|string',
-        ]);
 
-        $trackingIdExists = NIN_REQUEST::where('trackingId', $request->tracking_id)->exists();
+            $validator = Validator::make($request->all(), [
+                'tracking_id' => [
+                    'required',
+                    'string',
+                    function ($attribute, $value, $fail) {
+                        if (!in_array(strlen($value), [11, 15])) {
+                            $fail('Tracking ID must be 15 digits and NIN 11 digits.');
+                        }
+                    },
+                ],
+                'service' => 'required|numeric',
+                'description' => 'sometimes|required|string',
+            ], [
+                'documents.required' => 'Photograph is required.',
+                'documents.mimes'    => 'Photograph must be a file of type: jpeg, png.',
+                'documents.max'      => 'Photograph must not be greater than 10MB.',
+            ]);
 
-        if ($trackingIdExists) {
-            return redirect()->back()->with('error', 'Sorry  Tracking ID Or NIN Number already existed!');
-        }
+            $validator->sometimes('documents', 'required|file|mimes:jpeg,png|max:10240', function ($input) {
+                return in_array((int) $input->service, [163, 164, 165, 166]);
+            });
+
+            $validator->validate();
+
+
+             // Retrieve the validated file
+            $file = $request->file('documents');
+
+            // Generate a unique file name or use the original name
+            $fileName = time() . '_' . $file->getClientOriginalName();
+
+            // Move the file to the storage path
+            $filePath = $file->storeAs('Uploads', $fileName, 'public');
+
+        // $trackingIdExists = NIN_REQUEST::where('trackingId', $request->tracking_id)->exists();
+
+        // if ($trackingIdExists) {
+        //     return redirect()->back()->with('error', 'Sorry  Tracking ID Or NIN Number already existed!');
+        // }
 
         $count = NIN_REQUEST::all()
             ->where('user_id', $this->loginUserId)
@@ -1055,6 +1079,8 @@ class AgencyController extends Controller
                 'refno' => $referenceno,
                 'trackingId' => $tracking_id,
                 'service_type' => $serviceType,
+                'description' => $request->description,
+                'uploads'=>$filePath,
             ]);
 
             //Notifocation

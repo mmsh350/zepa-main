@@ -139,7 +139,7 @@
                                                     </div>
                                                 @endif
                                                 <form id="form" name="nin-request" method="POST"
-                                                    action="{{ route('request-nin-service') }}">
+                                                    action="{{ route('request-nin-service') }}" enctype="multipart/form-data">
                                                     @csrf
                                                     <div class="row mb-2">
 
@@ -164,6 +164,27 @@
                                                                 <p class="mb-2 form-label" id="modify_lbl"></p>
                                                                 <div id="input-container"></div>
                                                             </div>
+                                                        </div>
+
+                                                          <div class="row">
+                                                            <div class="col-md-12">
+                                                                <p class="mb-2 mt-2 form-label" id="modify_lbl2"></p>
+                                                                <div id="input-container2"></div>
+                                                            </div>
+                                                        </div>
+
+                                                          <div id="photo" class="col-xl-12 col-lg-12 col-md-12 col-sm-12 mt-1 mb-2">
+                                                            <label for="input-file" class="form-label">Photograph
+                                                                Requirement</label>
+
+                                                            <a type="button"data-bs-toggle="modal"
+                                                                data-bs-target="#requirements"><i
+                                                                    class="las la-info-circle bg-light"
+                                                                    style="font-size:24px"></i></a>
+                                                            <p><small class="text-danger"> Note: For more infomation
+                                                                    click on the information icon</small>
+                                                                <input class="form-control mt-2" type="file"
+                                                                    name="documents" id="documents"  />
                                                         </div>
 
                                                     </div>
@@ -284,6 +305,39 @@
                 </div>
             </div>
         </div>
+   <div class="modal fade" id="requirements" aria-labelledby="requirements" data-bs-keyboard="true" aria-hidden="true">
+    <!-- Scrollable modal -->
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h6 class="modal-title" id="staticBackdropLabel2">  <h6 class="text-primary">Customer Photograph Requirement</h6></h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                 
+
+                <p>
+                    A clear and recent passport-style photo of the customer is mandatory. Please ensure the image is well-lit, unobstructed, and taken in front of a plain background.
+                </p>
+
+                <div class="row text-center mb-3">
+                    <div class="col-md-6">
+                        <img src="{{ asset('assets/images/photo-sample1.jpg') }}" alt="Sample 1" class="img-fluid rounded shadow-sm" style="max-height: 200px;">
+                        <p class="mt-2">Sample 1</p>
+                    </div>
+                    <div class="col-md-6">
+                        <img src="{{ asset('assets/images/photo-sample2.jpg') }}" alt="Sample 2" class="img-fluid rounded shadow-sm" style="max-height: 200px;">
+                        <p class="mt-2">Sample 2</p>
+                    </div>
+                </div>
+
+                <p>
+                    We appreciate your cooperation in providing the necessary documentation to facilitate the modification process.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
 
     </div>
 @endsection
@@ -315,55 +369,216 @@
         });
 
 
-        $(document).ready(function() {
+        // $(document).ready(function() {
 
-            //Options
-            hide();
+        //     //Options
+        //     hide();  hide2();
 
-            $("#service").change(function() {
-                var selectedIndex = this.selectedIndex;
-                var labelText = "";
-                var value = "";
+        //     $("#service").change(function() {
+        //         var selectedIndex = this.selectedIndex;
+        //         var labelText = "";  
+        //         let labelText2 = "";
+        //         var value = "";
 
-                // Clear the existing input first
-                $("#tracking_id").remove();
+        //         // Clear the existing input first
+        //         $("#tracking_id").remove();
+        //         $("#description").remove();
 
-                switch (selectedIndex) {
-                    case 0:
-                        hide();
-                        return;
-                    case 1:
-                    case 9:
-                        labelText = "Tracking ID";
-                        newInput = $(
-                            '<input type="text" id="tracking_id" maxlength="15" pattern="^[a-zA-Z0-9]{15}$" name="tracking_id" title="Tracking ID must be exactly 15 digits" class="form-control text-center" required/>'
-                        );
-                        break;
-                    default:
-                        labelText = "NIN Number";
-                        newInput = $(
-                            '<input type="text" id="tracking_id" maxlength="11"  pattern="^\\d{11}$"  title="NIN Number must be exactly 11 digits" name="tracking_id" class="form-control text-center" required/>'
-                        );
-                        break;
-                }
+        //         switch (selectedIndex) {
+        //             case 0:
+        //                 hide();
+        //                 return;
+        //             case 1:
+        //             case 9:
+        //                 labelText = "Tracking ID";
+        //                 newInput = $(
+        //                     '<input type="text" id="tracking_id" maxlength="15" pattern="^[a-zA-Z0-9]{15}$" name="tracking_id" title="Tracking ID must be exactly 15 digits" class="form-control text-center" required/>'
+        //                 );
+        //                 break;
 
-                // Append the new input to the desired container
-                $("#input-container").append(newInput);
+        //             default:
+        //                 labelText = "NIN Number";
+        //                 newInput = $(
+        //                     '<input type="text" id="tracking_id" maxlength="11"  pattern="^\\d{11}$"  title="NIN Number must be exactly 11 digits" name="tracking_id" class="form-control text-center" required/>'
+        //                 );
+        //                 break;
+        //         }
 
-                // Set the label text
+               
+        //         $("#input-container").append(newInput);
 
-                $("#modify_lbl").text(labelText);
-                show(); // Call your show function to display the input
-            });
-        });
 
-        function hide() {
+        //         switch (selectedIndex) {
+        //             case 0:
+        //             case 1:
+        //             case 2:
+        //             case 3:
+        //             case 4:
+        //             case 5:
+        //             case 6:
+        //             case 7:
+        //             case 8:
+        //             case 9:
+        //             case 10:
+        //                 hide2();
+        //                 return;
+        //             case 11:
+                         
+                            
+        //                     labelText2 = "Enter your Desires Names: e.g FirstName: Shango";
+        //                                 newInput2 = $(
+        //                         '<textarea id="description" name="description" class="form-control " required></textarea>'
+        //                     );
+        //                 break;
 
-            $("#modify_lbl").hide();
+        //             // case 12:
+        //             //      labelText = "NIN Number";
+        //             //     newInput = $(
+        //             //         '<input type="text" id="tracking_id" maxlength="11"  pattern="^\\d{11}$"  title="NIN Number must be exactly 11 digits" name="tracking_id" class="form-control text-center" required/>'
+        //             //     );
+        //             //     break;
+        //             //  case 13:
+        //             //      labelText = "NIN Number";
+        //             //     newInput = $(
+        //             //         '<input type="text" id="tracking_id" maxlength="11"  pattern="^\\d{11}$"  title="NIN Number must be exactly 11 digits" name="tracking_id" class="form-control text-center" required/>'
+        //             //     );
+        //             //     break;
+        //             //      case 14:
+        //             //      labelText = "NIN Number";
+        //             //     newInput = $(
+        //             //         '<input type="text" id="tracking_id" maxlength="11"  pattern="^\\d{11}$"  title="NIN Number must be exactly 11 digits" name="tracking_id" class="form-control text-center" required/>'
+        //             //     );
+        //             //     break;
+
+        //             default:
+        //                   labelText2 = "Enter details to modify";
+        //                                 newInput2 = $(
+        //                         '<textarea id="description" name="description" class="form-control " required></textarea>'
+        //                     );
+        //                 break;
+        //         }
+
+        //          $("#input-container2").append(newInput2);
+
+        //         // Set the label text
+
+        //         $("#modify_lbl").text(labelText);
+        //          $("#modify_lbl2").text(labelText2);
+        //         show();  show2();
+        //     });
+        // });
+
+        // function hide() {
+
+        //     $("#modify_lbl").hide();
+             
+        // }
+        //  function hide2() {
+
+            
+        //     $("#modify_lbl2").hide();
+        // }
+
+        // function show() {
+        //     $("#modify_lbl").show();
+           
+        // }
+        //  function show2() {
+            
+        //     $("#modify_lbl2").show();
+        // }
+        $(document).ready(function () {
+   
+           hide();
+           hide2();
+            $("#photo").hide();
+
+    $("#service").change(function () {
+        const selectedIndex = this.selectedIndex;
+
+        // Reset labels and input areas
+        $("#tracking_id").remove();
+        $("#description").remove();
+        $("#modify_lbl").text("").hide();
+        $("#modify_lbl2").text("").hide();
+        $("#photo").hide();
+
+
+        let newInput = '';
+        let newInput2 = '';
+        let labelText = '';
+        let labelText2 = '';
+
+        // First block: tracking_id logic
+        if (selectedIndex === 1 || selectedIndex === 9) {
+            labelText = "Tracking ID";
+            newInput = $(
+                '<input type="text" id="tracking_id" maxlength="15" pattern="^[a-zA-Z0-9]{15}$" name="tracking_id" title="Tracking ID must be exactly 15 characters (letters/numbers)" class="form-control text-center" required />'
+            );
+            $("#modify_lbl").text(labelText).show();
+            $("#input-container").append(newInput);
+        } else if (selectedIndex !== 0) {
+            labelText = "NIN Number";
+            newInput = $(
+                '<input type="text" id="tracking_id" maxlength="11" pattern="^\\d{11}$" name="tracking_id" title="NIN Number must be exactly 11 digits" class="form-control text-center" required />'
+            );
+            $("#modify_lbl").text(labelText).show();
+            $("#input-container").append(newInput);
         }
 
-        function show() {
-            $("#modify_lbl").show();
+        // Second block: description logic
+        if (selectedIndex === 11) {
+            labelText2 = "Enter your Desired Names: e.g <span class='text-danger'>FirstName, MiddleName, Surname</span>";
+            newInput2 = $(
+                '<textarea id="description" name="description" class="form-control" required></textarea>'
+            );
+            $("#modify_lbl2").html(labelText2).show();
+            $("#input-container2").append(newInput2);
+            $("#photo").show();
+        } else if (selectedIndex === 12) {
+            labelText2 = "Phone No";
+            newInput2 = $(
+                '<input type="text" id="description" maxlength="11" pattern="^\\d{11}$" name="description" title="Phone Number must be exactly 11 digits" class="form-control text-center" required />'
+            );
+             $("#modify_lbl2").html(labelText2).show();
+            $("#input-container2").append(newInput2);
+         $("#photo").show();
+         } else if (selectedIndex === 13) {
+             labelText2 = "Enter your new Address";
+            newInput2 = $(
+                '<textarea id="description" name="description" class="form-control" required></textarea>'
+            );
+            $("#modify_lbl2").html(labelText2).show();
+            $("#input-container2").append(newInput2);
+             $("#photo").show();
         }
+        else if (selectedIndex === 14){
+             labelText2 = "Enter your new date of birth";
+            newInput2 = $(
+                '<input type="date" id="description"  name="description" title="Please Enter a Valid Date of birth" class="form-control text-center" required />'
+            );
+            $("#modify_lbl2").html(labelText2).show();
+            $("#input-container2").append(newInput2);
+             $("#photo").show();
+        }
+        else{
+                 //do nothing
+        }
+    });
+});
+
+function hide() {
+    $("#modify_lbl").hide();
+}
+function hide2() {
+    $("#modify_lbl2").hide();
+}
+function show() {
+    $("#modify_lbl").show();
+}
+function show2() {
+    $("#modify_lbl2").show();
+}
+
     </script>
 @endpush
