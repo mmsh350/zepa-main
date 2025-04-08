@@ -75,6 +75,11 @@
                     </select>
                 </div>
 
+                  <div class="mb-3">
+                                            <label for="profile_pic" class="form-label">Change Profile Picture</label>
+                                            <input type="file" class="form-control" name="profile_pic" id="profile_pic">
+                                        </div>
+
                 <button type="submit" class="btn btn-primary">Update Profile</button>
             </form>
                             </div>
