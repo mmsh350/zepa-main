@@ -69,6 +69,8 @@ class ProfileController extends Controller
             'profile_pic' => 'nullable|image|mimes:jpeg,png,jpg|max:1028',
         ]);
 
+          $user = Auth::user();
+        
           // Convert image to base64 if uploaded
         if ($request->hasFile('profile_pic')) {
             $image = $request->file('profile_pic');
@@ -76,7 +78,6 @@ class ProfileController extends Controller
             $user->profile_pic = $base64Image;
         }
 
-        $user = Auth::user();
         $user->update($request->only('phone_number', 'gender','profile_pic'));
 
         return redirect()->back()->with('message', 'Profile updated successfully.');
