@@ -54,7 +54,7 @@
                  <span class="badge bg-primary rounded text-white px-3 py-2">{{ ucfirst(Auth::user()->role) }}</span>
             </div>
 
-            <form method="POST" action="{{ route('profile.update') }}">
+            <form method="POST" action="{{ route('profile.update') }}"  enctype="multipart/form-data">
                 @csrf
 
                 <div class="mb-3">
