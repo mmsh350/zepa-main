@@ -75,13 +75,13 @@
                                                                     &#x20A6;{{ $wallet_balance }}
                                                                 </h4>
                                                             </div>
-                                                            <div class="text-center">
+                                                            {{-- <div class="text-center">
                                                                 <a href="{{ route('more-services', 'funding') }}">
                                                                     <img class="img-fluid" width="38%"
                                                                         src="{{ asset('assets/images/apps/fund.png') }}">
                                                                 </a>
                                                                 <p> Fund wallet</p>
-                                                            </div>
+                                                            </div> --}}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -148,6 +148,13 @@
                                         <div class="card custom-card">
                                             <div class="card-body">
                                                 <div class="row ">
+                                                      <div class="col-6 col-md-3 text-center  mt-2">
+                                                        <a href="{{ route('more-services', 'funding') }}"> <img
+                                                                class="img-fluid" width="22%"
+                                                                src="{{ asset('assets/images/apps/fund.png') }}">
+                                                            <p>Fund Wallet</p>
+                                                        </a>
+                                                    </div>
                                                     <div class="col-6 col-md-3 text-center  mt-2">
                                                         <a href="{{ route('more-services', 'transfer') }}"> <img
                                                                 class="img-fluid" width="22%"
@@ -173,7 +180,7 @@
                                                         <a href="{{ route('electricity') }}"> <img class="img-fluid"
                                                                 width="22%"
                                                                 src="{{ asset('assets/images/apps/electric.png') }}">
-                                                            <p>Pay Electric Bills</p>
+                                                            <p>Pay Electricity Bills</p>
                                                         </a>
                                                     </div>
                                                     <div class="col-6 col-md-3 text-center  mt-2">
@@ -203,6 +210,13 @@
                                                                 class="img-fluid" width="22%"
                                                                 src="{{ asset('assets/images/apps/modify.png') }}">
                                                             <p>Agency Services</p>
+                                                        </a>
+                                                    </div>
+                                                     <div class="col-6 col-md-3 text-center  mt-2">
+                                                        <a href="{{ route('support') }}"> <img
+                                                                class="img-fluid" width="22%"
+                                                                src="{{ asset('assets/images/apps/support.png') }}">
+                                                            <p>Contact Support</p>
                                                         </a>
                                                     </div>
                                                 </div>
@@ -295,6 +309,13 @@
                                             <div class="card-body">
                                                 <div class="row ">
                                                     <div class="col-6 col-md-3 text-center  mt-2">
+                                                        <a href="{{ route('more-services', 'funding') }}"> <img
+                                                                class="img-fluid" width="22%"
+                                                                src="{{ asset('assets/images/apps/fund.png') }}">
+                                                            <p>Fund Wallet</p>
+                                                        </a>
+                                                    </div>
+                                                    <div class="col-6 col-md-3 text-center  mt-2">
                                                         <a href="{{ route('more-services', 'transfer') }}"> <img
                                                                 class="img-fluid" width="22%"
                                                                 src="{{ asset('assets/images/apps/transfer.png') }}">
@@ -319,7 +340,7 @@
                                                         <a href="{{ route('electricity') }}"> <img class="img-fluid"
                                                                 width="22%"
                                                                 src="{{ asset('assets/images/apps/electric.png') }}">
-                                                            <p>Pay Electric Bills</p>
+                                                            <p>Pay Electricity Bills</p>
                                                         </a>
                                                     </div>
                                                     <div class="col-6 col-md-3 text-center  mt-2">
@@ -349,6 +370,13 @@
                                                                 class="img-fluid" width="22%"
                                                                 src="{{ asset('assets/images/apps/modify.png') }}">
                                                             <p>Agency Services</p>
+                                                        </a>
+                                                    </div>
+                                                     <div class="col-6 col-md-3 text-center  mt-2">
+                                                        <a href="{{ route('support') }}"> <img
+                                                                class="img-fluid" width="22%"
+                                                                src="{{ asset('assets/images/apps/support.png') }}">
+                                                            <p>Contact Support</p>
                                                         </a>
                                                     </div>
                                                 </div>

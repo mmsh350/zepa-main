@@ -13,7 +13,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use App\Traits\ActiveUsers;
-use App\Traits\KycVerify;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -275,16 +274,6 @@ class UtilityController extends Controller
             return view('error');
         }
 
-        //Check if user is Pending, Rejected, or Verified KYC
-        $status = $this->is_verified();
-
-        if ($status == 'Pending') {
-            return redirect()->route('verification.kyc');
-        } elseif ($status == 'Submitted') {
-            return view('kyc-status')->with(compact('status'));
-        } elseif ($status == 'Rejected') {
-            return view('kyc-status')->with(compact('status'));
-        } else {
 
             //Notification Data
             $notifications = Notification::all()->where('user_id', $this->loginUserId)
@@ -309,7 +298,7 @@ class UtilityController extends Controller
                     'notifications',
                     'notifycount'
                 ));
-        }
+        
     }
 
     public function getVariation(Request $request)
