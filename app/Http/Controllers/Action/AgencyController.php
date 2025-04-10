@@ -998,15 +998,17 @@ class AgencyController extends Controller
 
             $validator->validate();
 
+            if ($request->hasFile('documents')) {
+                    // Retrieve the validated file
+                $file = $request->file('documents');
 
-             // Retrieve the validated file
-            $file = $request->file('documents');
+                // Generate a unique file name or use the original name
+                $fileName = time() . '_' . $file->getClientOriginalName();
 
-            // Generate a unique file name or use the original name
-            $fileName = time() . '_' . $file->getClientOriginalName();
-
-            // Move the file to the storage path
-            $filePath = $file->storeAs('Uploads', $fileName, 'public');
+                // Move the file to the storage path
+                $filePath = $file->storeAs('Uploads', $fileName, 'public');
+            }
+           
 
         // $trackingIdExists = NIN_REQUEST::where('trackingId', $request->tracking_id)->exists();
 
