@@ -998,6 +998,8 @@ class AgencyController extends Controller
 
             $validator->validate();
 
+            $filePath="";
+
             if ($request->hasFile('documents')) {
                     // Retrieve the validated file
                 $file = $request->file('documents');
