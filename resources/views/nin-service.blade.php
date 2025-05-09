@@ -245,7 +245,8 @@
                                                                                 &nbsp; <a
                                                                                     href="{{ route('ipeStatus', $data->trackingId) }}"
                                                                                     class="btn btn-sm btn-primary rounded">
-                                                                                    Check Status
+                                                                                    <i class="bx bx-refresh"></i> Check
+                                                                                    Status
                                                                                 </a>
                                                                             @endif
                                                                         </td>
