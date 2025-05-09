@@ -240,11 +240,13 @@
                                                                         <th scope="row">{{ $serialNumber++ }}</th>
                                                                         <td>{{ Str::upper($data->refno) }}</td>
                                                                         <td>{{ $data->trackingId }}</td>
-                                                                        <td>{{ $data->service_type }} @if ($data->service_type == 'IPE Instant')
+                                                                        <td>{{ $data->service_type }}
+                                                                            @if ($data->service_type == 'IPE Instant' && $data->status == 'pending')
                                                                                 &nbsp; <a
                                                                                     href="{{ route('ipeStatus', $data->trackingId) }}"
-                                                                                    class="btn btn-sm btn-primary">
-                                                                                    Check Status
+                                                                                    class="btn btn-sm btn-primary rounded">
+                                                                                    <i class="bx bx-refresh"></i> Check
+                                                                                    Status
                                                                                 </a>
                                                                             @endif
                                                                         </td>

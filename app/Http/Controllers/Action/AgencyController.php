@@ -1176,7 +1176,7 @@ class AgencyController extends Controller
                     ->with('success', 'IPE request is successful, check the query section');
             } elseif (isset($response['status']) && $response['status'] === false) {
                 return redirect()->route('nin-services')
-                    ->with('error',  $response['message'] . ' - Still processing,  Please dont resend a new request');
+                    ->with('error',  $response['message'] . ' - kindly wait your request is still processing');
             } else {
                 return redirect()->route('nin-services')
                     ->with('error', 'Unexpected error occurred');
