@@ -964,6 +964,7 @@ class AgencyController extends Controller
         $services = Services::where('category', 'Agency')
             ->where('type', 'NIN')
             ->where('status', 'enabled')
+            ->orderByRaw("FIELD(service_code, 137, 170) DESC")
             ->get();
 
         return view('nin-service', [
@@ -1127,7 +1128,7 @@ class AgencyController extends Controller
             return redirect()->back()->with('success', $successMessage);
         }
     }
- 
+
     public function ipeRequestStatus($trackingId)
     {
         try {
