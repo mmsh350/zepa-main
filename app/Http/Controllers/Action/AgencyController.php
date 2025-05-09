@@ -961,16 +961,11 @@ class AgencyController extends Controller
             ->orderBy('id', 'desc')
             ->paginate(5);
 
-        // $services = Services::where('category', 'Agency')
-        //     ->where('type', 'NIN')
-        //     ->where('status', 'enabled')
-        //     ->get();
         $services = Services::where('category', 'Agency')
             ->where('type', 'NIN')
             ->where('status', 'enabled')
             ->orderByRaw("FIELD(service_code, 137, 170) DESC")
             ->get();
-
 
         return view('nin-service', [
             'notifications' => $notifications,
@@ -1180,7 +1175,7 @@ class AgencyController extends Controller
                     ->with('success', 'IPE request is successful, check the query section');
             } elseif (isset($response['status']) && $response['status'] === false) {
                 return redirect()->route('nin-services')
-                    ->with('error',  $response['message'] . ' - Please dont resend it might still be processing');
+                    ->with('error',  $response['message'] . ' - Still processing,  Please dont resend a new request');
             } else {
                 return redirect()->route('nin-services')
                     ->with('error', 'Unexpected error occurred');
