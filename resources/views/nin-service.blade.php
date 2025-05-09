@@ -97,7 +97,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-xl-4">
+                            <div class="col-xl-6">
                                 <div class="row">
                                     <div class="col-xl-12">
                                         <div class="card custom-card">
@@ -198,7 +198,7 @@
 
                                 </div>
                             </div>
-                            <div class="col-xl-8">
+                            <div class="col-xl-6">
                                 <div class="row ">
                                     <div class="col-xl-12">
                                         <div class="card custom-card ">
@@ -224,7 +224,6 @@
                                                                         <th width="5%" scope="col">ID</th>
                                                                         <th scope="col">Reference No.</th>
                                                                         <th scope="col">Tracking/NIN ID </th>
-                                                                         <th scope="col">Type</th>
                                                                         <th scope="col" class="text-center">Status
                                                                         </th>
                                                                         <th scope="col">Query</th>
@@ -237,7 +236,6 @@
                                                                             </th>
                                                                             <td>{{ Str::upper($data->refno) }}</td>
                                                                             <td>{{ $data->trackingId }}</td>
-                                                                             <td>{{ $data->serviceType }}</td>
                                                                             <td class="text-center">
                                                                                 @if ($data->status == 'resolved')
                                                                                     <span
@@ -512,7 +510,7 @@
         let labelText2 = '';
 
         // First block: tracking_id logic
-        if (selectedIndex === 1 || selectedIndex === 10 || selectedIndex === 2) {
+        if (selectedIndex === 1 || selectedIndex === 9) {
             labelText = "Tracking ID";
             newInput = $(
                 '<input type="text" id="tracking_id" maxlength="15" pattern="^[a-zA-Z0-9]{15}$" name="tracking_id" title="Tracking ID must be exactly 15 characters (letters/numbers)" class="form-control text-center" required />'
@@ -529,7 +527,7 @@
         }
 
         // Second block: description logic
-        if (selectedIndex === 13) {
+        if (selectedIndex === 11) {
             labelText2 = "Enter your Desired Names: e.g <span class='text-danger'>FirstName, MiddleName, Surname</span>";
             newInput2 = $(
                 '<textarea id="description" name="description" class="form-control" required></textarea>'
@@ -537,7 +535,7 @@
             $("#modify_lbl2").html(labelText2).show();
             $("#input-container2").append(newInput2);
             $("#photo").show();
-        } else if (selectedIndex === 14) {
+        } else if (selectedIndex === 12) {
             labelText2 = "Phone No";
             newInput2 = $(
                 '<input type="text" id="description" maxlength="11" pattern="^\\d{11}$" name="description" title="Phone Number must be exactly 11 digits" class="form-control text-center" required />'
@@ -545,7 +543,7 @@
              $("#modify_lbl2").html(labelText2).show();
             $("#input-container2").append(newInput2);
          $("#photo").show();
-         } else if (selectedIndex === 15) {
+         } else if (selectedIndex === 13) {
              labelText2 = "Enter your new Address";
             newInput2 = $(
                 '<textarea id="description" name="description" class="form-control" required></textarea>'
@@ -554,7 +552,7 @@
             $("#input-container2").append(newInput2);
              $("#photo").show();
         }
-        else if (selectedIndex === 16){
+        else if (selectedIndex === 14){
              labelText2 = "Enter your new date of birth";
             newInput2 = $(
                 '<input type="date" id="description"  name="description" title="Please Enter a Valid Date of birth" class="form-control text-center" required />'
