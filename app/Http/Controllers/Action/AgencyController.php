@@ -953,10 +953,16 @@ class AgencyController extends Controller
             ->orderBy('id', 'desc')
             ->paginate(5);
 
-        $services = Services::where('category', 'Agency')
+        // $services = Services::where('category', 'Agency')
+        //     ->where('type', 'NIN')
+        //     ->where('status', 'enabled')
+        //     ->get();
+          $services = Services::where('category', 'Agency')
             ->where('type', 'NIN')
             ->where('status', 'enabled')
+            ->orderByRaw("FIELD(service_code, 137, 170) DESC")
             ->get();
+
 
         return view('nin-service', [
             'notifications' => $notifications,
@@ -1029,6 +1035,10 @@ class AgencyController extends Controller
 
         $tracking_id = $request->tracking_id;
 
+         if ($request->service == 170) {
+               $this->pushForAutoIpe($tracking_id);
+          }
+
         // Services Fee
         $ServiceFee = 0;
         $Service = Services::where('service_code', $request->service)->first();
@@ -1099,6 +1109,9 @@ class AgencyController extends Controller
 
             return redirect()->back()->with('success', $successMessage);
         }
+    }
+    public function pushForAutoIpe($trackindId){
+
     }
     public function vninToNibss(Request $request)
     {
