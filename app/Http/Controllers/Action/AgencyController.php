@@ -12,6 +12,7 @@ use App\Models\Notification;
 use App\Models\Services;
 use App\Models\Transaction;
 use App\Models\Wallet;
+use App\Services\WalletService;
 use App\Traits\ActiveUsers;
 use App\Traits\KycVerify;
 use Carbon\Carbon;
@@ -26,12 +27,19 @@ class AgencyController extends Controller
     use ActiveUsers;
     use KycVerify;
 
+    protected $walletService;
+
     protected $loginUserId;
 
-    // Constructor to initialize the property
-    public function __construct()
+    // // Constructor to initialize the property
+    // public function __construct()
+    // {
+    //     $this->loginUserId = Auth::id();
+    // }
+    public function __construct(WalletService $walletService)
     {
         $this->loginUserId = Auth::id();
+        $this->walletService = $walletService;
     }
 
     //Show CRM
@@ -957,7 +965,7 @@ class AgencyController extends Controller
         //     ->where('type', 'NIN')
         //     ->where('status', 'enabled')
         //     ->get();
-          $services = Services::where('category', 'Agency')
+        $services = Services::where('category', 'Agency')
             ->where('type', 'NIN')
             ->where('status', 'enabled')
             ->orderByRaw("FIELD(service_code, 137, 170) DESC")
@@ -980,43 +988,43 @@ class AgencyController extends Controller
     public function ninServiceRequest(Request $request)
     {
 
-            $validator = Validator::make($request->all(), [
-                'tracking_id' => [
-                    'required',
-                    'string',
-                    function ($attribute, $value, $fail) {
-                        if (!in_array(strlen($value), [11, 15])) {
-                            $fail('Tracking ID must be 15 digits and NIN 11 digits.');
-                        }
-                    },
-                ],
-                'service' => 'required|numeric',
-                'description' => 'sometimes|required|string',
-            ], [
-                'documents.required' => 'Photograph is required.',
-                'documents.mimes'    => 'Photograph must be a file of type: jpeg, png.',
-                'documents.max'      => 'Photograph must not be greater than 10MB.',
-            ]);
+        $validator = Validator::make($request->all(), [
+            'tracking_id' => [
+                'required',
+                'string',
+                function ($attribute, $value, $fail) {
+                    if (!in_array(strlen($value), [11, 15])) {
+                        $fail('Tracking ID must be 15 digits and NIN 11 digits.');
+                    }
+                },
+            ],
+            'service' => 'required|numeric',
+            'description' => 'sometimes|required|string',
+        ], [
+            'documents.required' => 'Photograph is required.',
+            'documents.mimes'    => 'Photograph must be a file of type: jpeg, png.',
+            'documents.max'      => 'Photograph must not be greater than 10MB.',
+        ]);
 
-            $validator->sometimes('documents', 'required|file|mimes:jpeg,png|max:10240', function ($input) {
-                return in_array((int) $input->service, [163, 164, 165, 166]);
-            });
+        $validator->sometimes('documents', 'required|file|mimes:jpeg,png|max:10240', function ($input) {
+            return in_array((int) $input->service, [163, 164, 165, 166]);
+        });
 
-            $validator->validate();
+        $validator->validate();
 
-            $filePath="";
+        $filePath = "";
 
-            if ($request->hasFile('documents')) {
-                    // Retrieve the validated file
-                $file = $request->file('documents');
+        if ($request->hasFile('documents')) {
+            // Retrieve the validated file
+            $file = $request->file('documents');
 
-                // Generate a unique file name or use the original name
-                $fileName = time() . '_' . $file->getClientOriginalName();
+            // Generate a unique file name or use the original name
+            $fileName = time() . '_' . $file->getClientOriginalName();
 
-                // Move the file to the storage path
-                $filePath = $file->storeAs('Uploads', $fileName, 'public');
-            }
-           
+            // Move the file to the storage path
+            $filePath = $file->storeAs('Uploads', $fileName, 'public');
+        }
+
 
         // $trackingIdExists = NIN_REQUEST::where('trackingId', $request->tracking_id)->exists();
 
@@ -1035,10 +1043,6 @@ class AgencyController extends Controller
 
         $tracking_id = $request->tracking_id;
 
-         if ($request->service == 170) {
-               $this->pushForAutoIpe($tracking_id);
-          }
-
         // Services Fee
         $ServiceFee = 0;
         $Service = Services::where('service_code', $request->service)->first();
@@ -1053,6 +1057,23 @@ class AgencyController extends Controller
         if ($wallet_balance < $ServiceFee) {
             return redirect()->back()->with('error', 'Sorry Wallet Not Sufficient for Transaction !');
         } else {
+
+            if ($request->service == 170) {
+                $response = $this->pushForAutoIpe($tracking_id);
+
+                if (isset($response['status']) && $response['status'] === true && $response['message'] !== true) {
+                } elseif (isset($response['status']) && $response['status'] === false) {
+
+                    if ($response['message'] == 'Invalid Authorization Header Format') {
+                        return redirect()->back()->with('error', 'Failed: You are not authorize to perform this action. ');
+                    }
+
+                    return redirect()->back()->with('error', $response['message'] ?? 'Request failed.');
+                } else {
+                    // Fallback error
+                    return redirect()->back()->with('error', 'Unexpected response from the API.');
+                }
+            }
 
             $balance = $wallet->balance - $ServiceFee;
 
@@ -1094,7 +1115,7 @@ class AgencyController extends Controller
                 'trackingId' => $tracking_id,
                 'service_type' => $serviceType,
                 'description' => $request->description,
-                'uploads'=>$filePath,
+                'uploads' => $filePath,
             ]);
 
             //Notifocation
@@ -1105,13 +1126,119 @@ class AgencyController extends Controller
                 'messages' => 'Wallet debitted with a Request fee of ' . number_format($ServiceFee, 2),
             ]);
 
+            $this->walletService->creditDeveloperWallet($payer_name, $payer_email, $payer_phone, $referenceno . "C2w", "ipe_dev_fee");
+
             $successMessage = 'NIN Service Request was successfully';
 
             return redirect()->back()->with('success', $successMessage);
         }
     }
-    public function pushForAutoIpe($trackindId){
+    public function ipeRequestStatus($trackingId)
+    {
+        try {
 
+            $data = ['idNumber' => $trackingId, "consent" => true];
+
+            $url = env('BASE_API_URL') . '/api/ipestatus/index.php';
+            $token = env('VERIFY_BEARER');
+
+            $headers = [
+                'Accept: application/json, text/plain, */*',
+                'Content-Type: application/json',
+                "Authorization: Bearer $token",
+            ];
+
+            // Initialize cURL
+            $ch = curl_init();
+
+            // Set cURL options
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+
+            // Execute request
+            $response = curl_exec($ch);
+
+            // Check for cURL errors
+            if (curl_errno($ch)) {
+                throw new \Exception('cURL Error: ' . curl_error($ch));
+            }
+
+            // Close cURL session
+            curl_close($ch);
+
+            $response = json_decode($response, true);
+
+            if (isset($response['status']) && $response['status'] === true) {
+
+                NIN_REQUEST::where('trackingId', $trackingId)
+                    ->update(['reason' => $response['reply'] ?? '', 'status' => 'resolved']);
+
+                return redirect()->route('nin-services')
+                    ->with('success', 'IPE request is successful, check the query section');
+            } elseif (isset($response['status']) && $response['status'] === false) {
+                return redirect()->route('nin-services')
+                    ->with('error',  $response['message'] . ' - Please dont resend it might still be processing');
+            } else {
+                return redirect()->route('nin-services')
+                    ->with('error', 'Unexpected error occurred');
+            }
+        } catch (\Exception $e) {
+
+            return redirect()->route('nin-services')
+                ->with('error', 'An error occurred while making the API request');
+        }
+    }
+    public function pushForAutoIpe($trackingId)
+    {
+
+        try {
+
+            $data = [
+                'idNumber' => $trackingId,
+                'consent' => true,
+            ];
+
+            $url = env('BASE_API_URL') . '/api/ipeclearance/index.php';
+            $token = env('VERIFY_BEARER');
+
+            $headers = [
+                'Accept: application/json, text/plain, */*',
+                'Content-Type: application/json',
+                "Authorization: Bearer $token",
+            ];
+
+            // Initialize cURL
+            $ch = curl_init();
+
+            // Set cURL options
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+
+            // Execute request
+            $response = curl_exec($ch);
+
+            // Check for cURL errors
+            if (curl_errno($ch)) {
+                throw new \Exception('cURL Error: ' . curl_error($ch));
+            }
+
+            // Close cURL session
+            curl_close($ch);
+
+            $response = json_decode($response, true);
+            return $response;
+        } catch (\Exception $e) {
+            return $response = [
+                'status' => false,
+                'message' => 'An error occurred while making the API request'
+            ];
+        }
     }
     public function vninToNibss(Request $request)
     {
